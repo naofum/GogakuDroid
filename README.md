@@ -1,4 +1,0 @@
-GogakuDroid
-===========
-
-CaptureStream for Android
