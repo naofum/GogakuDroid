@@ -41,11 +41,12 @@ import org.xmlpull.v1.XmlPullParserException;
 import com.github.naofum.gogakudroid.R;
 import com.github.naofum.gogakudroid.ShellUtils.ShellCallback;
 
-public class AsyncDownload extends AsyncTask<String, Void, String> {
+public class AsyncDownload extends AsyncTask<String, Integer, String> {
 
 	public Activity owner;
 	public String lastKouza;
 	public String lastMessage;
+	public boolean isSkip;
 	private String receiveStr;
 	protected FfmpegController fc;
 	protected ProgressDialog progressDialog;
@@ -57,28 +58,36 @@ public class AsyncDownload extends AsyncTask<String, Void, String> {
 	public AsyncDownload(Activity activity) {
 		owner = activity;
 
-//		progressDialog = new ProgressDialog(owner);
-//		progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-//		progressDialog.setMessage("処理を実行しています");
-//		progressDialog.setCancelable(true);
-//		progressDialog.show();
-
 	}
 
 	@Override
+	protected void onPreExecute() {
+	    Log.d(TAG, "onPreExecute");
+	    progressDialog = new ProgressDialog(owner);
+	    progressDialog.setMessage(owner.getString(R.string.downloading));
+	    progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+	    progressDialog.setCancelable(true);
+	    progressDialog.setCanceledOnTouchOutside(false);
+	    progressDialog.setProgress(0);
+	    progressDialog.show();
+	}
+
+	  @Override
 	protected String doInBackground(String[] koza) {
 		File fileTmp = new File("tmp");
 		try {
 			fc = new FfmpegController(owner, fileTmp);
 		} catch (IOException e) {
 			e.printStackTrace();
-			return "1";
+			return owner.getString(R.string.init_error);
 		}
 
 		SharedPreferences sharedPref = 
 		        PreferenceManager.getDefaultSharedPreferences(owner);
-		String type = sharedPref.getString("type", "mp3");
+		String type = sharedPref.getString("type", "m4a");
+		isSkip = sharedPref.getBoolean("skip_file", false);
 
+		progressDialog.setMax(koza.length);
 		String url = null;
         for (int i = 0; i < koza.length; i++) {
         	// file index of this week
@@ -103,7 +112,7 @@ public class AsyncDownload extends AsyncTask<String, Void, String> {
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
-				return "1";
+				return owner.getString(R.string.conn_error);
 			}
 
 			XmlPullParser xmlPullParser = Xml.newPullParser();
@@ -111,7 +120,7 @@ public class AsyncDownload extends AsyncTask<String, Void, String> {
 			    xmlPullParser.setInput( new StringReader ( receiveStr ) );
 			} catch (XmlPullParserException e) {
 			    Log.d(TAG, e.toString());
-				return "1";
+				return owner.getString(R.string.parse_error);
 			}
 			try {
 				String kouza;
@@ -129,24 +138,35 @@ public class AsyncDownload extends AsyncTask<String, Void, String> {
 			        		nendo = xmlPullParser.getAttributeValue(null, "nendo");
 			        		lastKouza = kouza;
 			        		download(koza[i], kouza, hdate, file, nendo, type);
+			        		publishProgress(i);
 			        	}
 			        }
 			        eventType = xmlPullParser.next();
 			    }
 			} catch (Exception e) {
-			    Log.d("XmlPullParserSample", "Error");
-				return "1";
+			    Log.d(TAG, e.toString());
+				return owner.getString(R.string.parse_error);
 			}
 		}
-		return "0";
+		return lastMessage;
 	}
 
+	@Override
+	protected void onProgressUpdate(Integer... values) {
+	    progressDialog.setProgress(values[0]);
+	}
+	  
 	protected void download(String koza, String kouza, String hdate, String file, String nendo, String type) {
 		Clip mediaIn = new Clip(AKAMAI + file + "/master.m3u8");
 		Clip mediaOut = new Clip(Environment.getExternalStorageDirectory()
 				.getPath() + "/Download/" + kouza + "/" + kouza + "_" + hdate + "." + type);
 		File dir = new File(Environment.getExternalStorageDirectory().getPath() + "/Download/" + kouza);
 		dir.mkdir();
+		File newFile = new File(mediaOut.path);
+		if (isSkip && newFile.exists()) {
+			lastMessage = owner.getString(R.string.skipped);
+			return;
+		}
 		try {
 			if (type.equals("3g2")) {
 				mediaOut.audioCodec = "copy";
@@ -186,9 +206,29 @@ public class AsyncDownload extends AsyncTask<String, Void, String> {
 	}
 
 	@Override
+	protected void onCancelled() {
+		if (progressDialog != null && progressDialog.isShowing()) {
+			try {
+	            progressDialog.dismiss();
+			} catch (Exception e) {
+				//
+			}
+		}
+	}
+
+	@Override
 	protected void onPostExecute(String result) {
+		if (progressDialog != null && progressDialog.isShowing()) {
+			try {
+	            progressDialog.dismiss();
+			} catch (Exception e) {
+				//
+			}
+		}
+
 		TextView textView1 = (TextView) owner.findViewById(R.id.textView1);
 		textView1.setText(lastMessage);
+		Toast.makeText(owner, lastMessage, Toast.LENGTH_LONG).show();
 	}
 
 	public class CommonShellCallBack implements ShellCallback {
@@ -201,13 +241,12 @@ public class AsyncDownload extends AsyncTask<String, Void, String> {
 		public void processComplete(int exitValue) {
 //			progressDialog.dismiss();
 			if (exitValue == 0) {
-				lastMessage = lastKouza + "をダウンロードしました";
-				Log.i(TAG, lastKouza + " Download completed");
+				lastMessage = owner.getString(R.string.finished);
+				Log.i(TAG, lastMessage);
 			} else {
-				lastMessage = lastKouza + "をダウンロードできませんでした";
-				Log.i(TAG, lastKouza + " Download failed");
+				lastMessage = owner.getString(R.string.failed);
+				Log.i(TAG, lastMessage);
 			}
-			Toast.makeText(owner, lastMessage, Toast.LENGTH_LONG).show();
 		}
 	}
 }

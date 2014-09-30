@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen 
   xmlns:android="http://schemas.android.com/apk/res/android">
+    <CheckBoxPreference
+        android:key="skip_file"
+        android:summary="@string/skip_file_desc"
+        android:title="@string/skip_file" />
     <ListPreference
-        android:defaultValue="mp3"
+        android:defaultValue="m4a"
         android:entries="@array/type"
         android:entryValues="@array/type_value"
         android:key="type"

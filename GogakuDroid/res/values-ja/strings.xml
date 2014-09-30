@@ -8,6 +8,8 @@
     <string name="download">ダウンロード</string>
     <string name="about">このアプリについて</string>
     <string name="settings">設定...</string>
+    <string name="skip_file">ダウンロード済をスキップ</string>
+    <string name="skip_file_desc">ダウンロード済のファイルをスキップします</string>
     <string name="overwrite_bin">実行モジュールを上書き</string>
     <string name="overwrite_bin_desc">毎回ダウンロード開始時に実行モジュールを上書きします（未実装）</string>
     <string name="theme">テーマ</string>
@@ -15,7 +17,15 @@
     <string name="type">ファイル種類</string>
     <string name="type_desc">出力するファイルの種類を選択してください</string>
     <string name="close">閉じる</string>
+    <string name="downloading">ダウンロードしています...</string>
     <string name="started">ダウンロードを開始しました.</string>
+    <string name="finished">ダウンロードが完了しました.</string>
+    <string name="failed">ダウンロードできませんでした.</string>
+    <string name="cancelled">ダウンロードをキャンセルしました.</string>
+    <string name="skipped">ファイルをスキップしました.</string>
+    <string name="init_error">初期化エラー.</string>
+    <string name="conn_error">ネットワーク接続エラー.</string>
+    <string name="parse_error">XML 解析エラー.</string>
 
     <string-array name="theme">
         <item>ダーク</item>
