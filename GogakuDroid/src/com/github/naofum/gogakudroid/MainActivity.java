@@ -55,6 +55,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
+import android.widget.FrameLayout;
 import android.widget.ListView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
@@ -175,7 +176,16 @@ public class MainActivity extends Activity {
 
         View root = getWindow().getDecorView();
         View firstChild = ((ViewGroup) root).getChildAt(0);
-		((LinearLayout) firstChild).addView(adView);
+        //This is for Jelly, ICS, Honeycomb
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB && Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR2) {
+            ((LinearLayout) firstChild).addView(adView);
+        //This is for KitKat and Jelly 4.3
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+            ((ViewGroup) firstChild).addView(adView);
+        } else {
+            ((LinearLayout) firstChild).addView(adView);
+//        	((LinearLayout) ((FrameLayout) firstChild).getChildAt(0)).addView(adView);
+        }
 		
 //		RelativeLayout layout = (RelativeLayout)findViewById(R.id.main_view);
 //		layout.addView(adView);
