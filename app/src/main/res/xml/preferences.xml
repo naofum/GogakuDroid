@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen 
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="skip_file"
+        android:summary="@string/skip_file_desc"
+        android:title="@string/skip_file" />
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="wake_lock"
+        android:summary="@string/wake_lock_desc"
+        android:title="@string/wake_lock" />
+    <ListPreference
+        android:defaultValue="m4a"
+        android:entries="@array/type"
+        android:entryValues="@array/type_value"
+        android:key="type"
+        android:summary="@string/type_desc"
+        android:title="@string/type" />
+    <ListPreference
+        android:defaultValue="Theme.Dark"
+        android:entries="@array/theme"
+        android:entryValues="@array/theme_value"
+        android:key="theme"
+        android:summary="@string/theme_desc"
+        android:title="@string/theme" />
+    <CheckBoxPreference
+        android:key="overwrite_bin"
+        android:summary="@string/overwrite_bin_desc"
+        android:title="@string/overwrite_bin" />
+</PreferenceScreen>
