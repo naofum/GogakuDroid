@@ -7,7 +7,7 @@ android {
 
     defaultConfig {
         applicationId "com.github.naofum.gogakudroid"
-        minSdkVersion 16
+        minSdkVersion 9
         targetSdkVersion 23
     }
 
