@@ -110,11 +110,11 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
         for (int i = 0; i < koza.length; i++) {
         	// file index of this week
         	if (MainActivity.ENGLISH.containsKey(koza[i])) {
-        	    url = "http://cgi2.nhk.or.jp/gogaku/st/xml/english/" + koza[i] + "/listdataflv.xml";
-        	} else if (koza[i].contains("levelup_")) {
-        		url = "http://cgi2.nhk.or.jp/gogaku/st/xml/" + koza[i].substring("levelup_".length()) + "/levelup/listdataflv.xml";
+        	    url = "https://cgi2.nhk.or.jp/gogaku/st/xml/english/" + koza[i] + "/listdataflv.xml";
+        	} else if (koza[i].contains("_")) {
+        		url = "https://cgi2.nhk.or.jp/gogaku/st/xml/" + koza[i].replace("_", "/") + "/listdataflv.xml";
         	} else {
-        		url = "http://cgi2.nhk.or.jp/gogaku/st/xml/" + koza[i] + "/kouza/listdataflv.xml";
+        		url = "https://cgi2.nhk.or.jp/gogaku/st/xml/" + koza[i] + "/kouza/listdataflv.xml";
         	}
 			try {
 				HttpGet httpGet = new HttpGet(url);

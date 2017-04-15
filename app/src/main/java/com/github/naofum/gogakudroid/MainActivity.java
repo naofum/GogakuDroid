@@ -46,8 +46,10 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.google.android.gms.ads.AdRequest;
@@ -72,21 +74,27 @@ public class MainActivity extends Activity {
 		ENGLISH.put("kaiwa", "ラジオ英会話");
 		ENGLISH.put("business1", "入門ビジネス英語");
 		ENGLISH.put("business2", "実践ビジネス英語");
-		ENGLISH.put("kouryaku", "攻略！英語リスニング");
-		ENGLISH.put("yomu", "英語で読む村上春樹");
+		ENGLISH.put("gendai", "高校生からはじめる「現代英語」");
+		ENGLISH.put("3month", "短期集中！３か月英会話");
 		ENGLISH.put("enjoy", "エンジョイ・シンプル・イングリッシュ");
 	}
 	protected static Map<String, String> MULTILINGUAL = new HashMap<String, String>();
 	static {
-		MULTILINGUAL.put("chinese", "まいにち中国語");
-		MULTILINGUAL.put("levelup_chinese", "レベルアップ中国語");
-		MULTILINGUAL.put("french", "まいにちフランス語");
-		MULTILINGUAL.put("italian", "まいにちイタリア語");
-		MULTILINGUAL.put("hangeul", "まいにちハングル講座");
-		MULTILINGUAL.put("levelup_hangeul", "レベルアップハングル講座");
-		MULTILINGUAL.put("german", "まいにちドイツ語");
-		MULTILINGUAL.put("spanish", "まいにちスペイン語");
-		MULTILINGUAL.put("russian", "まいにちロシア語");
+		MULTILINGUAL.put("chinese_kouza", "まいにち中国語");
+		MULTILINGUAL.put("chinese_levelup", "レベルアップ中国語");
+        MULTILINGUAL.put("chinese_omotenashi", "おもてなしの中国語");
+        MULTILINGUAL.put("hangeul_kouza", "まいにちハングル講座");
+        MULTILINGUAL.put("hangeul_levelup", "レベルアップハングル講座");
+        MULTILINGUAL.put("italian_kouza", "まいにちイタリア語【初級編】");
+        MULTILINGUAL.put("italian_kouza2", "まいにちイタリア語【応用編】");
+        MULTILINGUAL.put("german_kouza", "まいにちドイツ語【初級編】");
+        MULTILINGUAL.put("german_kouza2", "まいにちドイツ語【応用編】");
+		MULTILINGUAL.put("french_kouza", "まいにちフランス語【初級編】");
+        MULTILINGUAL.put("french_kouza2", "まいにちフランス語【応用編】");
+		MULTILINGUAL.put("spanish_kouza", "まいにちスペイン語【入門編】");
+        MULTILINGUAL.put("spanish_kouza2", "まいにちスペイン語【中級編】");
+		MULTILINGUAL.put("russian_kouza", "まいにちロシア語【入門編】");
+        MULTILINGUAL.put("russian_kouza2", "まいにちロシア語【応用編】");
 	}
 
 //	protected String[] koza = { "basic1", "basic2" };
@@ -182,10 +190,12 @@ public class MainActivity extends Activity {
             }
         });
 
-		adView = new AdView(this);
-		adView.setAdUnitId(MY_AD_UNIT_ID);
-		adView.setAdSize(AdSize.BANNER);
+//		adView = new AdView(this);
+		adView = (AdView) findViewById(R.id.adView);
+//		adView.setAdUnitId(MY_AD_UNIT_ID);
+//		adView.setAdSize(AdSize.BANNER);
 
+/*
         View root = getWindow().getDecorView();
         View firstChild = ((ViewGroup) root).getChildAt(0);
         //This is for Jelly, ICS, Honeycomb
@@ -198,7 +208,8 @@ public class MainActivity extends Activity {
             ((LinearLayout) firstChild).addView(adView);
 //        	((LinearLayout) ((FrameLayout) firstChild).getChildAt(0)).addView(adView);
         }
-		
+*/
+
 //		RelativeLayout layout = (RelativeLayout)findViewById(R.id.main_view);
 //		layout.addView(adView);
 
