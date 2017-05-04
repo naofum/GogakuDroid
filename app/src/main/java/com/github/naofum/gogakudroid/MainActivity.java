@@ -23,6 +23,7 @@ import java.io.InputStreamReader;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import android.app.Activity;
@@ -60,11 +61,10 @@ public class MainActivity extends Activity {
 
 	private static final String TAG = MainActivity.class.getSimpleName();
 	private static final String STATE_TEXT = "MainActivity.text";
-	protected static Map<String, String> ENGLISH = new HashMap<String, String>();
+	protected static Map<String, String> ENGLISH = new LinkedHashMap<String, String>();
     protected AsyncDownload mTask;
 
 	private AdView adView;
-	private static final String MY_AD_UNIT_ID = "ca-app-pub-9209419102968336/3450818802";
 
 	static {
 		ENGLISH.put("basic1", "基礎英語1");
@@ -78,7 +78,7 @@ public class MainActivity extends Activity {
 		ENGLISH.put("3month", "短期集中！３か月英会話");
 		ENGLISH.put("enjoy", "エンジョイ・シンプル・イングリッシュ");
 	}
-	protected static Map<String, String> MULTILINGUAL = new HashMap<String, String>();
+	protected static Map<String, String> MULTILINGUAL = new LinkedHashMap<String, String>();
 	static {
 		MULTILINGUAL.put("chinese_kouza", "まいにち中国語");
 		MULTILINGUAL.put("chinese_levelup", "レベルアップ中国語");
@@ -97,8 +97,6 @@ public class MainActivity extends Activity {
         MULTILINGUAL.put("russian_kouza2", "まいにちロシア語【応用編】");
 	}
 
-//	protected String[] koza = { "basic1", "basic2" };
-//	protected FfmpegController fc;
 	protected static ArrayList<Classes> classes;
 	protected static ListView list;
 	protected static ClassAdapter adapter = null;
@@ -190,29 +188,7 @@ public class MainActivity extends Activity {
             }
         });
 
-//		adView = new AdView(this);
 		adView = (AdView) findViewById(R.id.adView);
-//		adView.setAdUnitId(MY_AD_UNIT_ID);
-//		adView.setAdSize(AdSize.BANNER);
-
-/*
-        View root = getWindow().getDecorView();
-        View firstChild = ((ViewGroup) root).getChildAt(0);
-        //This is for Jelly, ICS, Honeycomb
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB && Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR2) {
-            ((LinearLayout) firstChild).addView(adView);
-        //This is for KitKat and Jelly 4.3
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-            ((ViewGroup) firstChild).addView(adView);
-        } else {
-            ((LinearLayout) firstChild).addView(adView);
-//        	((LinearLayout) ((FrameLayout) firstChild).getChildAt(0)).addView(adView);
-        }
-*/
-
-//		RelativeLayout layout = (RelativeLayout)findViewById(R.id.main_view);
-//		layout.addView(adView);
-
 		AdRequest adRequest = new AdRequest.Builder().build();
 		adView.loadAd(adRequest);
 

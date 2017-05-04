@@ -183,7 +183,7 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		Clip mediaOut = new Clip(Environment.getExternalStorageDirectory()
 				.getPath() + "/Download/" + kouza + "/" + kouza + "_" + hdate + "." + type);
 		File dir = new File(Environment.getExternalStorageDirectory().getPath() + "/Download/" + kouza);
-		dir.mkdir();
+		dir.mkdirs();
 		File newFile = new File(mediaOut.path);
 		if (isSkip && newFile.exists()) {
 			lastMessage = owner.getString(R.string.skipped);
@@ -240,7 +240,8 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 
 	@Override
 	protected void onPostExecute(String result) {
-		mWakeLock.release();
+		if (mWakeLock.isHeld())
+			mWakeLock.release();
 		((MainActivity) owner).mTask = null;
 		if (progressDialog != null && progressDialog.isShowing()) {
 			try {
