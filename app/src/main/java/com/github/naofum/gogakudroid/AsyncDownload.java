@@ -180,9 +180,9 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 	  
 	protected void download(String koza, String kouza, String hdate, String file, String nendo, String type) {
 		Clip mediaIn = new Clip(AKAMAI + file + "/master.m3u8");
-		Clip mediaOut = new Clip(Environment.getExternalStorageDirectory()
-				.getPath() + "/Download/" + kouza + "/" + kouza + "_" + hdate + "." + type);
-		File dir = new File(Environment.getExternalStorageDirectory().getPath() + "/Download/" + kouza);
+		Clip mediaOut = new Clip(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getPath()
+				+ "/" + kouza + "/" + kouza + "_" + hdate + "." + type);
+		File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getPath() + "/" + kouza);
 		dir.mkdirs();
 		File newFile = new File(mediaOut.path);
 		if (isSkip && newFile.exists()) {
