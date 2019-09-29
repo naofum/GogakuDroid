@@ -1,14 +1,14 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 25
-    buildToolsVersion '25.0.0'
+    compileSdkVersion 27
+    buildToolsVersion '27.0.2'
     useLibrary 'org.apache.http.legacy'
 
     defaultConfig {
         applicationId "com.github.naofum.gogakudroid"
         minSdkVersion 9
-        targetSdkVersion 25
+        targetSdkVersion 27
         multiDexEnabled true
     }
 
@@ -22,7 +22,7 @@ android {
 
 dependencies {
     //    compile 'org.jbundle.util.osgi.wrapped:org.jbundle.util.osgi.wrapped.org.apache.http.client:4.1.2'
-    compile 'com.android.support:appcompat-v7:25.0.0'
+    compile 'com.android.support:appcompat-v7:25.3.1'
     compile 'com.google.android.gms:play-services:10.0.1'
     compile 'com.google.android.gms:play-services-ads:10.0.1'
     compile 'com.android.support:multidex:1.0.1'

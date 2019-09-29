@@ -39,6 +39,7 @@ import android.preference.PreferenceManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.text.Html;
+import android.text.method.LinkMovementMethod;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -71,6 +72,7 @@ public class MainActivity extends Activity {
 	private AdView adView;
 
 	static {
+		ENGLISH.put("basic0", "基礎英語0");
 		ENGLISH.put("basic1", "基礎英語1");
 		ENGLISH.put("basic2", "基礎英語2");
 		ENGLISH.put("basic3", "基礎英語3");
@@ -79,7 +81,7 @@ public class MainActivity extends Activity {
 		ENGLISH.put("business1", "入門ビジネス英語");
 		ENGLISH.put("business2", "実践ビジネス英語");
 		ENGLISH.put("gendai", "高校生からはじめる「現代英語」");
-		ENGLISH.put("3month", "短期集中！３か月英会話");
+		ENGLISH.put("gakusyu", "遠山顕の英会話楽習");
 		ENGLISH.put("enjoy", "エンジョイ・シンプル・イングリッシュ");
 	}
 	protected static Map<String, String> MULTILINGUAL = new LinkedHashMap<String, String>();
@@ -89,6 +91,7 @@ public class MainActivity extends Activity {
         MULTILINGUAL.put("chinese_omotenashi", "おもてなしの中国語");
         MULTILINGUAL.put("hangeul_kouza", "まいにちハングル講座");
         MULTILINGUAL.put("hangeul_levelup", "レベルアップハングル講座");
+		MULTILINGUAL.put("hangeul_omotenashi", "おもてなしのハングル");
         MULTILINGUAL.put("italian_kouza", "まいにちイタリア語【初級編】");
         MULTILINGUAL.put("italian_kouza2", "まいにちイタリア語【応用編】");
         MULTILINGUAL.put("german_kouza", "まいにちドイツ語【初級編】");
@@ -273,9 +276,12 @@ public class MainActivity extends Activity {
         case R.id.settings:
             startActivity(new Intent(this, Preference.class));
             return true;
-        case R.id.about:
-        	asset_dialog("about.html", R.string.about);
+        case R.id.privacy:
+        	asset_dialog("privacy.html", R.string.privacy);
             return true;
+		case R.id.about:
+			asset_dialog("about.html", R.string.about);
+			return true;
         }
         return false;
     }
@@ -307,6 +313,7 @@ public class MainActivity extends Activity {
 		}
 
 		textview1.setText(Html.fromHtml(text));
+		textview1.setMovementMethod(LinkMovementMethod.getInstance());
 
 		Button dialogButton = (Button) dialog.findViewById(R.id.button1);
 		// if button is clicked, close the custom dialog

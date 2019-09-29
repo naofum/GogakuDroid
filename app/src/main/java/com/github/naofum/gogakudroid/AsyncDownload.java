@@ -55,7 +55,7 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 	protected ProgressDialog progressDialog;
 
 	protected static String TAG = AsyncDownload.class.getSimpleName();
-	protected static String AKAMAI = "https://nhk-vh.akamaihd.net/i/gogaku-stream/mp4/";
+	protected static String AKAMAI = "https://nhks-vh.akamaihd.net/i/gogaku-stream/mp4/";
 //	protected static String type = "3gp";
 	private PowerManager.WakeLock mWakeLock;
 
@@ -225,6 +225,7 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		} catch (Exception e) {
 			Log.e(TAG, e.getMessage());
 		}
+
 	}
 
 	@Override
