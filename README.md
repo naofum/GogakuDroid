@@ -6,13 +6,10 @@ CaptureStream for Android
 Licensed under the GPLv3  
 
 Including next packages
- * FFmpeg
- * LAME libmp3lame
- * OpenSSL
- * Android-ffmpeg
+ * mobile-ffmpeg
 
-Notes
- * FFmpeg was compiled using cine-io/android-ffmpeg-with-rtmp
+Release note
+ * 0.17 Changed FFmpeg library to mobile-ffmpeg instead of android-ffmpeg-with-rtmp
 
 
 

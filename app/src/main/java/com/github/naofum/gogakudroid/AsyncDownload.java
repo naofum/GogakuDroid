@@ -19,6 +19,8 @@ package com.github.naofum.gogakudroid;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import android.os.AsyncTask;
 import android.os.Environment;
@@ -47,7 +49,9 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 
 	public Activity owner;
 	public String lastKouza;
+	public String lastHdate;
 	public String lastMessage;
+	public String lastLog;
 	public boolean isSkip;
 	public boolean isWakeLock;
 	private String receiveStr;
@@ -58,6 +62,10 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 	protected static String AKAMAI = "https://nhks-vh.akamaihd.net/i/gogaku-stream/mp4/";
 //	protected static String type = "3gp";
 	private PowerManager.WakeLock mWakeLock;
+
+	private long duration;
+	private int perc;
+	private int currentkoza;
 
 	public AsyncDownload(Activity activity) {
 		owner = activity;
@@ -81,12 +89,15 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
             mWakeLock.acquire();
         }
 
+        lastMessage = "";
+
         progressDialog = new ProgressDialog(owner);
 	    progressDialog.setMessage(owner.getString(R.string.downloading));
 	    progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
 	    progressDialog.setCancelable(true);
 	    progressDialog.setCanceledOnTouchOutside(false);
-	    progressDialog.setProgress(0);
+        progressDialog.setProgress(0);
+		progressDialog.setSecondaryProgress(0);
 	    progressDialog.show();
 	}
 
@@ -105,9 +116,10 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		String type = sharedPref.getString("type", "m4a");
 		isSkip = sharedPref.getBoolean("skip_file", true);
 
-		progressDialog.setMax(koza.length);
+//		progressDialog.setMax(koza.length);
 		String url = null;
         for (int i = 0; i < koza.length; i++) {
+			currentkoza = 100 * i / koza.length;
         	// file index of this week
         	if (MainActivity.ENGLISH.containsKey(koza[i])) {
         	    url = "https://cgi2.nhk.or.jp/gogaku/st/xml/english/" + koza[i] + "/listdataflv.xml";
@@ -155,8 +167,9 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 			        		file = xmlPullParser.getAttributeValue(null, "file");
 			        		nendo = xmlPullParser.getAttributeValue(null, "nendo");
 			        		lastKouza = kouza;
+			        		lastHdate = hdate;
 			        		download(koza[i], kouza, hdate, file, nendo, type);
-			        		publishProgress(i);
+			        		publishProgress(perc, currentkoza);
 			        		if (isCancelled()) {
 			        			return owner.getString(R.string.cancelled);
 			        		}
@@ -174,8 +187,15 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 
 	@Override
 	protected void onProgressUpdate(Integer... values) {
-		super.onProgressUpdate(values[0]);
+//		super.onProgressUpdate(values[0]);
 		progressDialog.setProgress(values[0]);
+        progressDialog.setSecondaryProgress(values[1]);
+		progressDialog.setMessage(owner.getString(R.string.downloading) + "\n" + lastKouza + "_" + lastHdate);
+        try {
+			Thread.sleep(100);
+		} catch (InterruptedException e) {
+        	//
+		}
 	}
 	  
 	protected void download(String koza, String kouza, String hdate, String file, String nendo, String type) {
@@ -230,6 +250,7 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 
 	@Override
 	protected void onCancelled() {
+		fc.cancel();
 		if (progressDialog != null && progressDialog.isShowing()) {
 			try {
 	            progressDialog.dismiss();
@@ -261,6 +282,31 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		@Override
 		public void shellOut(String msg) {
 			Log.d(TAG, msg);
+			if (msg.length() > 0) {
+				if (lastLog != null && lastLog.startsWith("  Duration:") && msg.length() > 8 && msg.substring(0, 3).equals("00:")) {
+					SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+					try {
+						Date date1 = sdf.parse(msg.substring(0, 8));
+                        Date date2 = sdf.parse("00:00:00");
+						duration = date1.getTime() - date2.getTime();
+					} catch (java.text.ParseException e) {
+						//
+					}
+				} else  if (msg.indexOf(" time=") > -1) {
+					SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+					String time = msg.substring(msg.indexOf(" time=") + 6, msg.indexOf(" time=") + 14);
+					try {
+						Date date1 = sdf.parse(time);
+						Date date2 = sdf.parse("00:00:00");
+						long current = date1.getTime() - date2.getTime();
+						perc = (int) (100 * current / duration);
+						publishProgress(perc, currentkoza);
+					} catch (java.text.ParseException e) {
+						//
+					}
+				}
+				lastLog = msg;
+			}
 		}
 
 		@Override
@@ -270,6 +316,9 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 			if (exitValue == 0) {
 				lastMessage = owner.getString(R.string.finished);
 				Log.i(TAG, lastMessage);
+			} else if (exitValue == 255) {
+					lastMessage = owner.getString(R.string.cancelled);
+					Log.i(TAG, lastMessage);
 			} else {
 				lastMessage = owner.getString(R.string.failed);
 				Log.i(TAG, lastMessage);

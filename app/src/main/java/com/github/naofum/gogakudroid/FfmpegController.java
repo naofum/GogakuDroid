@@ -15,22 +15,16 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.StringTokenizer;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
+import com.arthenica.mobileffmpeg.Config;
+import com.arthenica.mobileffmpeg.FFmpeg;
+
+import com.arthenica.mobileffmpeg.LogCallback;
+import com.arthenica.mobileffmpeg.LogMessage;
 import com.github.naofum.gogakudroid.ShellUtils.ShellCallback;
 
 import android.content.Context;
-import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
-import android.content.pm.PackageManager.NameNotFoundException;
-import android.content.res.AssetManager;
-import android.graphics.Bitmap;
-import android.media.MediaMetadataRetriever;
-import android.os.Build;
 import android.util.Log;
 
 public class FfmpegController {
@@ -38,7 +32,7 @@ public class FfmpegController {
 	
 	private String mFfmpegBin;
 	private String mFfmpegLib;
-	private String mBinDir;
+//	private String mBinDir;
 	
 	private final static String TAG = "FFMPEG";
 	
@@ -48,196 +42,54 @@ public class FfmpegController {
 	
 	public FfmpegController(Context context, File fileTemp) throws FileNotFoundException, IOException {		
 		mFileTemp = fileTemp;
-		mBinDir = context.getDir("bin", 0).getAbsolutePath();
-		
-		installBinaries(context, false);
+//		mBinDir = context.getDir("bin", 0).getAbsolutePath();
 	}
 	
-	public void installBinaries(Context context, boolean overwrite)
-	{
-		mFfmpegBin = installBinary(context, "ffmpeg", overwrite);
-	}
-	
-	public String getBinaryPath ()
-	{
-		return mFfmpegBin;
-	}
-	
-	private static String installBinary(Context ctx, String filename, boolean upgrade) {
-		try {
-			File f = new File(ctx.getDir("bin", 0), filename);
-			if (f.exists()) {
-				f.delete();
-			}
-			File tmp = ctx.getDir("bin", 0);
-			tmp.mkdir();
-			tmp = ctx.getDir("lib", 0);
-			tmp.mkdir();
-//			mFfmpegLib = tmp.getCanonicalPath();
-			AssetManager am  = ctx.getResources().getAssets();
-			InputStream is = am.open("ffmpeg-android.zip", AssetManager.ACCESS_STREAMING);
-			ZipInputStream zis = new ZipInputStream(is);
-			ZipEntry ze = zis.getNextEntry();
-			String curdir = ctx.getDir("", 0).toString();
-			while (ze != null) {
-				if (ze.isDirectory()) {
-					curdir = ctx.getDir("", 0).toString() + "/" + ze.getName();
-					File dir = new File(curdir);
-					dir.mkdir();
-				} else {
-				    String path = curdir + ze.getName();
-				    FileOutputStream fos = new FileOutputStream(path, false);
-				    byte[] buf = new byte[1024];
-				    int size = 0;
-				    while ((size = zis.read(buf, 0, buf.length)) > -1) {
-				        fos.write(buf, 0, size);
-				    }
-				    fos.close();
-			    }
-			    zis.closeEntry();
-				ze = zis.getNextEntry();
-			}
-			zis.close();
 
-			Runtime.getRuntime().exec("chmod -R 0750 " + ctx.getDir("bin", 0).toString()).waitFor();
-			Runtime.getRuntime().exec("chmod -R 0750 " + ctx.getDir("lib", 0).toString()).waitFor();
+    public void cancel() {
+	    FFmpeg.cancel();
+    }
 
-			return f.getCanonicalPath();
-		} catch (Exception e) {
-			Log.e(TAG, "installBinary failed: " + e.getLocalizedMessage());
-			return null;
+	private void execFFMPEG (List<String> cmd, final ShellCallback sc, File fileExec) throws IOException, InterruptedException {
+
+		StringBuffer commands = new StringBuffer();
+
+		for (String acmd : cmd) {
+			commands.append(acmd);
+			commands.append(' ');
 		}
-	}
-	
-	/**
-	 * Copies a raw resource file, given its ID to the given location
-	 * @param ctx context
-	 * @param resid resource id
-	 * @param file destination file
-	 * @param mode file permissions (E.g.: "755")
-	 * @throws IOException on error
-	 * @throws InterruptedException when interrupted
-	 */
-	private static void copyRawFile(Context ctx, int resid, File file, String mode) throws IOException, InterruptedException
-	{
-		final String abspath = file.getAbsolutePath();
-		// Write the iptables binary
-		final FileOutputStream out = new FileOutputStream(file);
-		final InputStream is = ctx.getResources().openRawResource(resid);
-		byte buf[] = new byte[1024];
-		int len;
-		while ((len = is.read(buf)) > 0) {
-			out.write(buf, 0, len);
-		}
-		out.close();
-		is.close();
-		// Change the permissions
-		Runtime.getRuntime().exec("chmod "+mode+" "+abspath).waitFor();
+
+        Config.enableLogCallback(new LogCallback() {
+            public void apply(LogMessage message) {
+            	sc.shellOut(message.getText());
+            }
+        });
+
+//		Config.enableStatisticsCallback(new StatisticsCallback() {
+//			public void apply(Statistics newStatistics) {
+//				Log.d(TAG, String.format("frame: %d, time: %d", newStatistics.getVideoFrameNumber(), newStatistics.getTime()));
+//			}
+//		});
+
+		FFmpeg.execute(commands.toString());
+
+        int rc = FFmpeg.getLastReturnCode();
+        String output = FFmpeg.getLastCommandOutput();
+
+		sc.processComplete(rc);
+        if (rc == FFmpeg.RETURN_CODE_SUCCESS) {
+            Log.d(Config.TAG, "Command execution completed successfully.");
+        } else if (rc == FFmpeg.RETURN_CODE_CANCEL) {
+            Log.d(Config.TAG, "Command execution cancelled by user.");
+        } else {
+            Log.d(Config.TAG, String.format("Command execution failed with rc=%d and output=%s.", rc, output));
+        }
 	}
 
-	
-	
-	private void execFFMPEG (List<String> cmd, ShellCallback sc, File fileExec) throws IOException, InterruptedException {
-	
-		enablePermissions();
-		
-		execProcess (cmd, sc, fileExec);
-	}
-	
-	private void enablePermissions () throws IOException
-	{
-		Runtime.getRuntime().exec("chmod 700 " + mFfmpegBin);
-    	
-	}
-	
 	private void execFFMPEG (List<String> cmd, ShellCallback sc) throws IOException, InterruptedException {
-		execFFMPEG (cmd, sc, new File(mFfmpegBin).getParentFile());
+//		execFFMPEG (cmd, sc, new File(mFfmpegBin).getParentFile());
+		execFFMPEG (cmd, sc, null);
 	}
-	
-	private int execProcess(List<String> cmds, ShellCallback sc, File fileExec) throws IOException, InterruptedException {		
-        
-		//ensure that the arguments are in the correct Locale format
-		for (String cmd :cmds)
-		{
-			cmd = String.format(Locale.US, "%s", cmd);
-		}
-		
-		ProcessBuilder pb = new ProcessBuilder(cmds);
-		pb.directory(fileExec);
-		
-		final Map<String, String> environment = pb.environment();
-		environment.put("LD_LIBRARY_PATH", fileExec.getParentFile().getAbsolutePath() + "/app_lib");
-
-		StringBuffer cmdlog = new StringBuffer();
-
-		for (String cmd : cmds)
-		{
-			cmdlog.append(cmd);
-			cmdlog.append(' ');
-		}
-		
-		sc.shellOut(cmdlog.toString());
-		
-		//pb.redirectErrorStream(true);
-		
-		Process process = pb.start();    
-    
-
-		// any error message?
-		StreamGobbler errorGobbler = new StreamGobbler(
-				process.getErrorStream(), "ERROR", sc);
-
-    	 // any output?
-        StreamGobbler outputGobbler = new 
-            StreamGobbler(process.getInputStream(), "OUTPUT", sc);
-
-        errorGobbler.start();
-        outputGobbler.start();
-
-        int exitVal = process.waitFor();
-        
-        sc.processComplete(exitVal);
-        
-        return exitVal;
-		
-	}
-	
-
-	private int execProcess(String cmd, ShellCallback sc, File fileExec) throws IOException, InterruptedException {		
-        
-		//ensure that the argument is in the correct Locale format
-		cmd = String.format(Locale.US, "%s", cmd);
-		
-		ProcessBuilder pb = new ProcessBuilder(cmd);
-		pb.directory(fileExec);
-
-	//	pb.redirectErrorStream(true);
-    	Process process = pb.start();    
-    	
-    
-    	  // any error message?
-        StreamGobbler errorGobbler = new 
-            StreamGobbler(process.getErrorStream(), "ERROR", sc);            
-        
-    	 // any output?
-        StreamGobbler outputGobbler = new 
-            StreamGobbler(process.getInputStream(), "OUTPUT", sc);
-            
-        // kick them off
-        errorGobbler.start();
-        outputGobbler.start();
-     
-
-        int exitVal = process.waitFor();
-        
-        sc.processComplete(exitVal);
-        
-        return exitVal;
-
-
-		
-	}
-	
 	
 	public class Argument
 	{
@@ -268,10 +120,10 @@ public class FfmpegController {
 	}
 
 	private void useRunPie(List<String> cmd) {
-		if(Build.VERSION.SDK_INT < 16){
-			cmd.add(mBinDir + "/run_pie");
-		}
-		cmd.add(mFfmpegBin);
+//		if(Build.VERSION.SDK_INT < 16){
+//			cmd.add(mBinDir + "/run_pie");
+//		}
+//		cmd.add(mFfmpegBin);
 	}
 
 	public void processVideo(Clip in, Clip out, boolean enableExperimental, ShellCallback sc) throws Exception {
@@ -893,8 +745,12 @@ out.avi – create this output file. Change it as you like, for example using an
 		cmd.add("artist=\"NHK\"");
 		
 		cmd.add("-metadata");
-		cmd.add("album=\"" + title + "\"");
-		
+        if (title.indexOf("_") > -1) {
+            cmd.add("album=\"" + title.substring(0, title.indexOf("_")) + "\"");
+        } else {
+            cmd.add("album=\"" + title + "\"");
+        }
+
 		cmd.add("-metadata");
 		cmd.add("date=\"" + date + "\"");
 		
@@ -964,7 +820,11 @@ out.avi – create this output file. Change it as you like, for example using an
 		cmd.add("artist=NHK");
 		
 		cmd.add("-metadata");
-		cmd.add("album=" + title);
+		if (title.indexOf("_") > -1) {
+            cmd.add("album=" + title.substring(0, title.indexOf("_")));
+        } else {
+            cmd.add("album=" + title);
+        }
 		
 		cmd.add("-metadata");
 		cmd.add("date=" + date);
