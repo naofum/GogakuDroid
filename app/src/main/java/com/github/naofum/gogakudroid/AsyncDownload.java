@@ -250,7 +250,7 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 
 	@Override
 	protected void onCancelled() {
-		fc.cancel();
+//		fc.cancel();
 		if (progressDialog != null && progressDialog.isShowing()) {
 			try {
 	            progressDialog.dismiss();
