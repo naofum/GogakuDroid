@@ -17,6 +17,7 @@
 package com.github.naofum.gogakudroid;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -34,9 +35,11 @@ import android.content.SharedPreferences.Editor;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.text.Html;
 import android.text.method.LinkMovementMethod;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -70,42 +73,46 @@ public class MainActivity extends Activity {
 	private AdView adView;
 
 	static {
-		ENGLISH.put("basic0", "基礎英語0");
-		ENGLISH.put("basic1", "基礎英語1");
-		ENGLISH.put("basic2", "基礎英語2");
-		ENGLISH.put("basic3", "基礎英語3");
-		ENGLISH.put("timetrial", "英会話タイムトライアル");
-		ENGLISH.put("kaiwa", "ラジオ英会話");
-		ENGLISH.put("business1", "入門ビジネス英語");
-		ENGLISH.put("business2", "実践ビジネス英語");
-		ENGLISH.put("gendai", "高校生からはじめる「現代英語」");
-		ENGLISH.put("gakusyu", "遠山顕の英会話楽習");
-		ENGLISH.put("enjoy", "エンジョイ・シンプル・イングリッシュ");
+		ENGLISH.put("basic0", "小学生の基礎英語");
 	}
 	protected static Map<String, String> MULTILINGUAL = new LinkedHashMap<String, String>();
 	static {
-		MULTILINGUAL.put("chinese_kouza", "まいにち中国語");
-		MULTILINGUAL.put("chinese_levelup", "レベルアップ中国語");
-        MULTILINGUAL.put("chinese_omotenashi", "おもてなしの中国語");
-        MULTILINGUAL.put("hangeul_kouza", "まいにちハングル講座");
-        MULTILINGUAL.put("hangeul_levelup", "レベルアップハングル講座");
-		MULTILINGUAL.put("hangeul_omotenashi", "おもてなしのハングル");
-        MULTILINGUAL.put("italian_kouza", "まいにちイタリア語【初級編】");
-        MULTILINGUAL.put("italian_kouza2", "まいにちイタリア語【応用編】");
-        MULTILINGUAL.put("german_kouza", "まいにちドイツ語【初級編】");
-        MULTILINGUAL.put("german_kouza2", "まいにちドイツ語【応用編】");
-		MULTILINGUAL.put("french_kouza", "まいにちフランス語【初級編】");
-        MULTILINGUAL.put("french_kouza2", "まいにちフランス語【応用編】");
-		MULTILINGUAL.put("spanish_kouza", "まいにちスペイン語【入門編】");
-        MULTILINGUAL.put("spanish_kouza2", "まいにちスペイン語【中級編】");
-		MULTILINGUAL.put("russian_kouza", "まいにちロシア語【入門編】");
-        MULTILINGUAL.put("russian_kouza2", "まいにちロシア語【応用編】");
+		MULTILINGUAL.put("6806", "中学生の基礎英語_レベル1");
+		MULTILINGUAL.put("6807", "中学生の基礎英語_レベル2");
+		MULTILINGUAL.put("6808", "中高生の基礎英語_in_English");
+		MULTILINGUAL.put("0916", "ラジオ英会話");
+		MULTILINGUAL.put("2331", "英会話タイムトライアル");
+		MULTILINGUAL.put("6809", "ラジオビジネス英語");
+		MULTILINGUAL.put("3064", "エンジョイ・シンプル・イングリッシュ");
+		MULTILINGUAL.put("7512", "ニュースで学ぶ「現代英語」");
+		MULTILINGUAL.put("4121", "ボキャブライダー");
+		MULTILINGUAL.put("0915", "まいにち中国語");
+		MULTILINGUAL.put("6581", "ステップアップ中国語");
+        MULTILINGUAL.put("0951", "まいにちハングル講座");
+        MULTILINGUAL.put("6810", "ステップアップハングル講座");
+        MULTILINGUAL.put("0944", "まいにちイタリア語_入門編");
+        MULTILINGUAL.put("4411", "まいにちイタリア語_応用編");
+        MULTILINGUAL.put("0943", "まいにちドイツ語_入門編_初級編");
+        MULTILINGUAL.put("4410", "まいにちドイツ語_応用編");
+		MULTILINGUAL.put("0953", "まいにちフランス語_入門編");
+        MULTILINGUAL.put("4412", "まいにちフランス語_応用編");
+		MULTILINGUAL.put("0948", "まいにちスペイン語_入門編_初級編");
+        MULTILINGUAL.put("4413", "まいにちスペイン語_中級編_応用編");
+		MULTILINGUAL.put("0956", "まいにちロシア語_入門編");
+        MULTILINGUAL.put("4414", "まいにちロシア語_応用編");
+		MULTILINGUAL.put("0937", "アラビア語講座");
+		MULTILINGUAL.put("1893", "ポルトガル語講座_入門(前期)");
+		MULTILINGUAL.put("2769", "ポルトガル語ステップアップ(後期)");
+		MULTILINGUAL.put("7155", "Living_in_Japan");
+		MULTILINGUAL.put("0701", "やさしい日本語");
+		MULTILINGUAL.put("7629", "Learn_Japanese_from_the_News");
 	}
 
 	protected static ArrayList<Classes> classes;
 	protected static ListView list;
 	protected static ClassAdapter adapter = null;
 	SharedPreferences sharedPref;
+	protected static File FILES_DIR;
 
 	@Override
 	protected void onStop() {
@@ -126,6 +133,8 @@ public class MainActivity extends Activity {
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		FILES_DIR = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+
         if (Build.VERSION.SDK_INT >= 23) {
             if (ContextCompat.checkSelfPermission(this,
                     android.Manifest.permission.WRITE_EXTERNAL_STORAGE)

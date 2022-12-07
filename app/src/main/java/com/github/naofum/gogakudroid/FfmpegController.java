@@ -2,7 +2,6 @@
 /* See LICENSE for licensing information */
 package com.github.naofum.gogakudroid;
 
-
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
@@ -17,15 +16,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.StringTokenizer;
 
-import com.arthenica.mobileffmpeg.Config;
-import com.arthenica.mobileffmpeg.FFmpeg;
+import com.arthenica.ffmpegkit.FFmpegKitConfig;
+import com.arthenica.ffmpegkit.FFmpegKit;
+import com.arthenica.ffmpegkit.Log;
+import com.arthenica.ffmpegkit.LogCallback;
 
-import com.arthenica.mobileffmpeg.LogCallback;
-import com.arthenica.mobileffmpeg.LogMessage;
 import com.github.naofum.gogakudroid.ShellUtils.ShellCallback;
 
 import android.content.Context;
-import android.util.Log;
 
 public class FfmpegController {
 
@@ -47,7 +45,7 @@ public class FfmpegController {
 	
 
     public void cancel() {
-	    FFmpeg.cancel();
+	    FFmpegKit.cancel();
     }
 
 	private void execFFMPEG (List<String> cmd, final ShellCallback sc, File fileExec) throws IOException, InterruptedException {
@@ -59,11 +57,12 @@ public class FfmpegController {
 			commands.append(' ');
 		}
 
-        Config.enableLogCallback(new LogCallback() {
-            public void apply(LogMessage message) {
-            	sc.shellOut(message.getText());
-            }
-        });
+		FFmpegKitConfig.enableLogCallback(new LogCallback() {
+			@Override
+			public void apply(Log log) {
+				sc.shellOut(log.getMessage());
+			}
+		});
 
 //		Config.enableStatisticsCallback(new StatisticsCallback() {
 //			public void apply(Statistics newStatistics) {
@@ -71,6 +70,27 @@ public class FfmpegController {
 //			}
 //		});
 
+		/*
+		Log.d(TAG, commands.toString());
+		FFmpeg.executeAsync(commands.toString(), new ExecuteCallback() {
+
+			@Override
+			public void apply(final long executionId, final int returnCode) {
+				sc.processComplete(returnCode);
+				if (returnCode == RETURN_CODE_SUCCESS) {
+					Log.d(Config.TAG, "Command execution completed successfully.");
+				} else if (returnCode == RETURN_CODE_CANCEL) {
+					Log.d(Config.TAG, "Command execution cancelled by user.");
+				} else {
+					Log.d(Config.TAG, String.format("Command execution failed with rc=%d.", returnCode));
+				}
+			}
+		});
+*/
+
+		FFmpegKit.execute(commands.toString());
+		sc.processComplete(0);
+		/*
 		FFmpeg.execute(commands.toString());
 
         int rc = FFmpeg.getLastReturnCode();
@@ -84,6 +104,7 @@ public class FfmpegController {
         } else {
             Log.d(Config.TAG, String.format("Command execution failed with rc=%d and output=%s.", rc, output));
         }
+*/
 	}
 
 	private void execFFMPEG (List<String> cmd, ShellCallback sc) throws IOException, InterruptedException {
@@ -663,6 +684,10 @@ out.avi – create this output file. Change it as you like, for example using an
 		useRunPie(cmd);
 //		cmd.add(mFfmpegBin);
 		cmd.add("-y");
+		cmd.add("-protocol_whitelist");
+		cmd.add("file,http,https,tcp,tls,crypto");
+		cmd.add("-allowed_extensions");
+		cmd.add("ALL");
 		cmd.add("-i");
 //		cmd.add(new File(mediaIn.path).getCanonicalPath());
 		cmd.add(mediaIn.path);
@@ -716,6 +741,10 @@ out.avi – create this output file. Change it as you like, for example using an
 		useRunPie(cmd);
 //		cmd.add(mFfmpegBin);
 		cmd.add("-y");
+		cmd.add("-protocol_whitelist");
+		cmd.add("file,http,https,tcp,tls,crypto");
+		cmd.add("-allowed_extensions");
+		cmd.add("ALL");
 		cmd.add("-i");
 //		cmd.add(new File(mediaIn.path).getCanonicalPath());
 		cmd.add(mediaIn.path);
@@ -791,6 +820,10 @@ out.avi – create this output file. Change it as you like, for example using an
 		useRunPie(cmd);
 //		cmd.add(mFfmpegBin);
 		cmd.add("-y");
+		cmd.add("-protocol_whitelist");
+		cmd.add("file,http,https,tcp,tls,crypto");
+		cmd.add("-allowed_extensions");
+		cmd.add("ALL");
 		cmd.add("-i");
 //		cmd.add(new File(mediaIn.path).getCanonicalPath());
 		cmd.add(mediaIn.path);
@@ -831,7 +864,7 @@ out.avi – create this output file. Change it as you like, for example using an
 		
 		cmd.add("-metadata");
 		cmd.add("genre=Speech");
-		
+
 		cmd.add("-bsf:a");
 		cmd.add("aac_adtstoasc");
 
@@ -858,7 +891,7 @@ out.avi – create this output file. Change it as you like, for example using an
 		
 		return mediaOut;
 	}
-	
+
 	public Clip convertTo3GPAudio (Clip mediaIn, Clip mediaOut, ShellCallback sc) throws Exception
 	{
 		ArrayList<String> cmd = new ArrayList<String>();
@@ -866,6 +899,10 @@ out.avi – create this output file. Change it as you like, for example using an
 		useRunPie(cmd);
 //		cmd.add(mFfmpegBin);
 		cmd.add("-y");
+		cmd.add("-protocol_whitelist");
+		cmd.add("file,http,https,tcp,tls,crypto");
+		cmd.add("-allowed_extensions");
+		cmd.add("ALL");
 		cmd.add("-i");
 //		cmd.add(new File(mediaIn.path).getCanonicalPath());
 		cmd.add(mediaIn.path);

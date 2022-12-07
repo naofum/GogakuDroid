@@ -45,25 +45,15 @@
         <item>3g2</item>
         <item>3gp</item>
         <item>aac</item>
-        <item>avi</item>
         <item>m4a</item>
-        <item>mki</item>
-        <item>mkv</item>
-        <item>mov</item>
         <item>mp3</item>
-        <item>ts</item>
     </string-array>
     <string-array name="type_value">
         <item>3g2</item>
         <item>3gp</item>
         <item>aac</item>
-        <item>avi</item>
         <item>m4a</item>
-        <item>mki</item>
-        <item>mkv</item>
-        <item>mov</item>
         <item>mp3</item>
-        <item>ts</item>
     </string-array>
 
 </resources>
