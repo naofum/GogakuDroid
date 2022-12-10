@@ -35,6 +35,8 @@ import android.util.Xml;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.RequiresApi;
+
 import com.github.naofum.gogakudroid.ShellUtils.ShellCallback;
 
 import org.json.JSONArray;
@@ -253,9 +255,16 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		Clip mediaOut = new Clip(MainActivity.FILES_DIR.getPath() + "/" + kouza + "/" + kouza + "_" + hdate + "." + type);
 		File dir = new File(MainActivity.FILES_DIR.getPath() + "/" + kouza);
 		dir.mkdirs();
-		if (isSkip && isMediaExist(kouza + "_" + hdate)) {
-			lastMessage = owner.getString(R.string.skipped);
-			return;
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+			if (isSkip && isMediaExist(kouza + "_" + hdate)) {
+				lastMessage = owner.getString(R.string.skipped);
+				return;
+			}
+		} else {
+			if (isSkip && isFileExist(kouza + "_" + hdate + "." + type)) {
+				lastMessage = owner.getString(R.string.skipped);
+				return;
+			}
 		}
 		try {
 			if (type.equals("3g2")) {
@@ -313,6 +322,18 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		String m3u8 = "";
 		File workdir = new File(MainActivity.FILES_DIR.getPath());
 
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+			if (isSkip && isMediaExist(kouza + "_" + hdate)) {
+				lastMessage = owner.getString(R.string.skipped);
+				return;
+			}
+		} else {
+			if (isSkip && isFileExist(kouza + "/" + kouza + "_" + hdate + "." + type)) {
+				lastMessage = owner.getString(R.string.skipped);
+				return;
+			}
+		}
+
 		try {
 			OkHttpClient client = new OkHttpClient().newBuilder()
 					.addNetworkInterceptor(new Interceptor() {
@@ -362,6 +383,7 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 			} else {
 				receiveStr = response.body().string();
 			}
+			response.body().close();
 		} catch (IOException e) {
 			Log.e(TAG, "Get m3u8 file error.");
 			e.printStackTrace();
@@ -408,10 +430,7 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		File dir = new File(workdir.getPath() + "/" + kouza);
 		dir.mkdirs();
 		Log.d(TAG, "mediaOut: " + workdir.getPath() + "/" + kouza);
-		if (isSkip && isMediaExist(kouza + "_" + hdate)) {
-			lastMessage = owner.getString(R.string.skipped);
-			return;
-		}
+
 		try {
 			if (type.equals("3g2")) {
 				mediaOut.audioCodec = "copy";
@@ -474,6 +493,7 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 			}
 			try (OutputStream os = new FileOutputStream(file)) {
 				os.write(Objects.requireNonNull(response.body()).bytes());
+				response.body().close();
 			} catch (IOException e) {
 				Log.e(TAG, String.format("Write binary file error. %s", file));
 				e.printStackTrace();
@@ -579,8 +599,13 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 						File sub_file = new File(MainActivity.FILES_DIR.getPath() + "/" + files[i] + "/" + sub_files[j]);
 						Log.d(TAG, "Local file: " + sub_files[j]);
 						if (sub_file.isFile()) {
-							Log.i(TAG, "Storing file into Media: " + files[i] + "/" + sub_files[j]);
-							storeMedia(subdir.getPath() + "/", sub_files[j], files[i]);
+							if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+								Log.d(TAG, "Storing file into Media: " + files[i] + "/" + sub_files[j]);
+								storeMedia(subdir.getPath() + "/", sub_files[j], files[i]);
+							} else {
+								Log.d(TAG, "Moving file into: " + target_dir.getPath() + "/" + files[i] + "/" + sub_files[j]);
+								moveFile(subdir.getPath() + "/", sub_files[j], target_dir.getPath() + "/" + files[i] + "/");
+							}
 						}
 					}
 				} else if (subdir.isFile()) {
@@ -598,7 +623,9 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		String download_path = Environment.DIRECTORY_DOWNLOADS.substring(Environment.DIRECTORY_DOWNLOADS.lastIndexOf("/") + 1);
 		ContentValues contentValues = new ContentValues();
 		contentValues.put(MediaStore.Audio.Media.ALBUM, outputPath);
-		contentValues.put(MediaStore.Audio.Media.RELATIVE_PATH, download_path + "/" + outputPath);
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+			contentValues.put(MediaStore.Audio.Media.RELATIVE_PATH, download_path + "/" + outputPath);
+		}
 		contentValues.put(MediaStore.Audio.Media.TITLE, inputFile);
 		contentValues.put(MediaStore.Audio.Media.DISPLAY_NAME, inputFile);
 		if (inputFile.endsWith("mp3")) {
@@ -613,7 +640,9 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 			contentValues.put(MediaStore.Audio.Media.MIME_TYPE, "audio/aac");
 		}
 
-		contentValues.put(MediaStore.Audio.Media.IS_PENDING, 1);
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+			contentValues.put(MediaStore.Audio.Media.IS_PENDING, 1);
+		}
 		ContentResolver resolver = owner.getContentResolver();
 		Uri collection;
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -622,28 +651,36 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		} else {
 			collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
 		}
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+			contentValues.put(MediaStore.Audio.Media.DATA, new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), inputPath).getAbsolutePath() + "/" + outputPath);
+		}
 		Uri item = resolver.insert(collection, contentValues);
 
-		try (OutputStream out = owner.getContentResolver().openOutputStream(item)) {
-			InputStream in = new FileInputStream(inputPath + inputFile);
+		try {
+			assert item != null;
+			try (OutputStream out = owner.getContentResolver().openOutputStream(item)) {
+				InputStream in = new FileInputStream(inputPath + inputFile);
 
-			byte[] buffer = new byte[1024];
-			int read;
-			while ((read = in.read(buffer)) != -1) {
-				out.write(buffer, 0, read);
+				byte[] buffer = new byte[1024];
+				int read;
+				while ((read = in.read(buffer)) != -1) {
+					out.write(buffer, 0, read);
+				}
+				in.close();
+				in = null;
+
+				// delete the original file
+				new File(inputPath + inputFile).delete();
 			}
-			in.close();
-			in = null;
-
-			// delete the original file
-			new File(inputPath + inputFile).delete();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
 		contentValues.clear();
-		contentValues.put(MediaStore.Audio.Media.IS_PENDING, 0);
-		resolver.update(item, contentValues, null, null);
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+			contentValues.put(MediaStore.Audio.Media.IS_PENDING, 0);
+			resolver.update(item, contentValues, null, null);
+		}
 	}
 
 	private boolean isMediaExist(String inputFile) {
@@ -671,4 +708,56 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		return found;
 	}
 
+	private boolean isFileExist(String inputFile) {
+		File file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() + "/" + inputFile);
+		Log.d(TAG, "Check file: " + file.getPath());
+		Log.d(TAG, "file exist: " + file.exists());
+		return file.exists();
+	}
+
+	private void moveFile(String inputPath, String inputFile, String outputPath) {
+		Log.d(TAG, "Moving file from:" + inputPath + inputFile + " into: " + outputPath);
+
+		InputStream in = null;
+		OutputStream out = null;
+		try {
+
+			//create output directory if it doesn't exist
+			File dir = new File (outputPath);
+			if (!dir.exists())
+			{
+				dir.mkdirs();
+			}
+
+
+			in = new FileInputStream(inputPath + inputFile);
+			out = new FileOutputStream(outputPath + inputFile);
+
+			byte[] buffer = new byte[1024];
+			int read;
+			while ((read = in.read(buffer)) != -1) {
+				out.write(buffer, 0, read);
+			}
+			in.close();
+			in = null;
+
+			// write the output file
+			out.flush();
+			out.close();
+			out = null;
+
+			// delete the original file
+			new File(inputPath + inputFile).delete();
+
+
+		}
+
+		catch (FileNotFoundException fnfe1) {
+			Log.e("tag", fnfe1.getMessage());
+		}
+		catch (Exception e) {
+			Log.e("tag", e.getMessage());
+		}
+
+	}
 }
