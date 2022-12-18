@@ -32,6 +32,8 @@ import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.util.Xml;
+import android.view.View;
+import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -90,6 +92,7 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 	private int currentkoza;
 
 	private static int available = 0;
+	private OkHttpClient client = new OkHttpClient();
 
 	public AsyncDownload(Activity activity) {
 		owner = activity;
@@ -152,7 +155,6 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 				url = "https://www.nhk.or.jp/radioondemand/json/" + koza[i] + "/bangumi_" + koza[i] + "_01.json";
         	}
 			try {
-				OkHttpClient client = new OkHttpClient();
 				Request request = new Request.Builder()
 						.url(url)
 						.build();
@@ -335,7 +337,7 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		}
 
 		try {
-			OkHttpClient client = new OkHttpClient().newBuilder()
+			OkHttpClient okclient = new OkHttpClient().newBuilder()
 					.addNetworkInterceptor(new Interceptor() {
 						@Override
 						public Response intercept(Chain chain) throws IOException {
@@ -346,13 +348,14 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 			Request request = new Request.Builder()
 					.url(file)
 					.build();
-			Response response = client.newCall(request).execute();
+			Response response = okclient.newCall(request).execute();
 			if (!response.isSuccessful()) {
 				Log.d(TAG, String.format("Get m3u8 file error with code: %d", response.code()));
 				return;
 			} else {
 				lastUrl = response.request().url().toString();
 				receiveStr = response.body().string();
+				response.body().close();
 			}
 		} catch (IOException e) {
 			Log.e(TAG, "Get m3u8 file error.");
@@ -372,7 +375,6 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		Log.d(TAG, "m3u8base: " + m3u8base);
 
 		try {
-			OkHttpClient client = new OkHttpClient();
 			Request request = new Request.Builder()
 					.url(m3u8)
 					.build();
@@ -382,8 +384,8 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 				return;
 			} else {
 				receiveStr = response.body().string();
+				response.body().close();
 			}
-			response.body().close();
 		} catch (IOException e) {
 			Log.e(TAG, "Get m3u8 file error.");
 			e.printStackTrace();
@@ -482,7 +484,6 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 
 	protected boolean downloadBinary(String url, String file) {
 		try {
-			OkHttpClient client = new OkHttpClient();
 			Request request = new Request.Builder()
 					.url(url)
 					.build();
@@ -622,11 +623,13 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 	private void storeMedia(String inputPath, String inputFile, String outputPath) {
 		String download_path = Environment.DIRECTORY_DOWNLOADS.substring(Environment.DIRECTORY_DOWNLOADS.lastIndexOf("/") + 1);
 		ContentValues contentValues = new ContentValues();
-		contentValues.put(MediaStore.Audio.Media.ALBUM, outputPath);
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 			contentValues.put(MediaStore.Audio.Media.RELATIVE_PATH, download_path + "/" + outputPath);
 		}
-		contentValues.put(MediaStore.Audio.Media.TITLE, inputFile);
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+			contentValues.put(MediaStore.Audio.Media.ALBUM, outputPath);
+			contentValues.put(MediaStore.Audio.Media.TITLE, inputFile);
+		}
 		contentValues.put(MediaStore.Audio.Media.DISPLAY_NAME, inputFile);
 		if (inputFile.endsWith("mp3")) {
 			contentValues.put(MediaStore.Audio.Media.MIME_TYPE, "audio/mpeg");

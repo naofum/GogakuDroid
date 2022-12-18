@@ -90,7 +90,7 @@ public class MainActivity extends Activity {
 		MULTILINGUAL.put("6581", "ステップアップ中国語");
         MULTILINGUAL.put("0951", "まいにちハングル講座");
         MULTILINGUAL.put("6810", "ステップアップハングル講座");
-        MULTILINGUAL.put("0944", "まいにちイタリア語_入門編");
+        MULTILINGUAL.put("0946", "まいにちイタリア語_入門編");
         MULTILINGUAL.put("4411", "まいにちイタリア語_応用編");
         MULTILINGUAL.put("0943", "まいにちドイツ語_入門編_初級編");
         MULTILINGUAL.put("4410", "まいにちドイツ語_応用編");
@@ -123,6 +123,26 @@ public class MainActivity extends Activity {
 	}
 
 	@Override
+	protected void onPause() {
+		super.onPause();
+		if (mTask != null) {
+			if (mTask.progressDialog != null && mTask.progressDialog.isShowing()) {
+				mTask.progressDialog.dismiss();
+			}
+		}
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+		if (mTask != null) {
+			if (mTask.progressDialog != null && !mTask.progressDialog.isShowing()) {
+				mTask.progressDialog.show();
+			}
+		}
+	}
+
+	@Override
 	protected void onSaveInstanceState(Bundle outState) {
 		super.onSaveInstanceState(outState);
 		if (mTask != null) {
@@ -135,7 +155,17 @@ public class MainActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		FILES_DIR = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
 
-        if (Build.VERSION.SDK_INT >= 23) {
+		/*
+		try {
+			Class.forName("dalvik.system.CloseGuard")
+					.getMethod("setEnabled", boolean.class)
+					.invoke(null, true);
+		} catch (ReflectiveOperationException e) {
+			throw new RuntimeException(e);
+		}
+*/
+
+		if (Build.VERSION.SDK_INT >= 23) {
             if (ContextCompat.checkSelfPermission(this,
                     android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
                     != PackageManager.PERMISSION_GRANTED
@@ -244,7 +274,9 @@ public class MainActivity extends Activity {
 	public void button1_click(View view) {
 		TextView textView1 = (TextView) this.findViewById(R.id.textView1);
 		textView1.setText(R.string.started);
-		
+
+		view.setKeepScreenOn(true);
+
 		savePreferences();
     	ArrayList<String> arr = new ArrayList<String>();
     	for (int i = 0; i < classes.size(); i++) {
