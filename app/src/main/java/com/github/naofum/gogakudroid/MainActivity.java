@@ -98,17 +98,17 @@ public class MainActivity extends Activity {
 		MULTILINGUAL.put("GGQY3M1929", "小学生の基礎英語");
 		MULTILINGUAL.put("148W8XX226", "中学生の基礎英語_レベル1");
 		MULTILINGUAL.put("83RW6PK3GG", "中学生の基礎英語_レベル2");
-		MULTILINGUAL.put("B2J88K328M", "中高生の基礎英語_in_English");
+//		MULTILINGUAL.put("B2J88K328M", "中高生の基礎英語_in_English");
 		MULTILINGUAL.put("PMMJ59J6N2", "ラジオ英会話");
 		MULTILINGUAL.put("8Z6XJ6J415", "英会話タイムトライアル");
 		MULTILINGUAL.put("368315KKP8", "ラジオビジネス英語");
 		MULTILINGUAL.put("BR8Z3NX7XM", "エンジョイ・シンプル・イングリッシュ");
 		MULTILINGUAL.put("77RQWQX1L6", "ニュースで学ぶ「現代英語」");
-		MULTILINGUAL.put("7Y5N5G674R", "ボキャブライダー");
+//		MULTILINGUAL.put("7Y5N5G674R", "ボキャブライダー");
 		MULTILINGUAL.put("983PKQPYN7", "まいにち中国語");
-		MULTILINGUAL.put("MYY93M57V6", "ステップアップ中国語");
+//		MULTILINGUAL.put("MYY93M57V6", "ステップアップ中国語");
 		MULTILINGUAL.put("LR47WW9K14", "まいにちハングル講座");
-       		MULTILINGUAL.put("NLJM5V3WXK", "ステップアップハングル講座");
+// 		MULTILINGUAL.put("NLJM5V3WXK", "ステップアップハングル講座");
    		MULTILINGUAL.put("LJWZP7XVMX", "まいにちイタリア語");
 //      	MULTILINGUAL.put("4411", "まいにちイタリア語_応用編");
  		MULTILINGUAL.put("N8PZRZ9WQY", "まいにちドイツ語");
@@ -118,13 +118,13 @@ public class MainActivity extends Activity {
 		MULTILINGUAL.put("09NRZWXVGQ19", "まいにちスペイン語");
 //        MULTILINGUAL.put("4413", "まいにちスペイン語_中級編_応用編");
 		MULTILINGUAL.put("YRLK72JZ7Q", "まいにちロシア語");
- //       MULTILINGUAL.put("4414", "まいにちロシア語_応用編");
+//        MULTILINGUAL.put("4414", "まいにちロシア語_応用編");
 		MULTILINGUAL.put("WKMNWGMN6R", "アラビア語講座");
 //		MULTILINGUAL.put("1893", "ポルトガル語講座_入門(前期)");
 		MULTILINGUAL.put("N13V9K157Y", "ポルトガル語");
 		MULTILINGUAL.put("4MY6Q8XP88", "Living_in_Japan");
 		MULTILINGUAL.put("6LPPKP6W8Q", "やさしい日本語");
-		MULTILINGUAL.put("D6RM27PGVM", "Learn_Japanese_from_the_News");
+//		MULTILINGUAL.put("D6RM27PGVM", "Learn_Japanese_from_the_News");
 	}
 
 	protected static ArrayList<Classes> classes;
@@ -227,8 +227,9 @@ public class MainActivity extends Activity {
                 this.getSharedPreferences( "target_class", Context.MODE_PRIVATE );
         Map<String, ?> map = pref.getAll();
 		classes = new ArrayList<Classes>();
-        int i = 0;
-        int chk = 0;
+		int i = 0;
+		int chk = 0;
+/*
         for (String key : ENGLISH.keySet()) {
     		chk = 0;
         	if (map.containsKey(key)) {
@@ -241,6 +242,7 @@ public class MainActivity extends Activity {
         	i++;
         }
         i = 0;
+*/
         for (String key : MULTILINGUAL.keySet()) {
     		chk = 0;
         	if (map.containsKey(key)) {

@@ -83,7 +83,8 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 	protected ProgressDialog progressDialog;
 
 	protected static String TAG = AsyncDownload.class.getSimpleName();
-	protected static String AKAMAI = "https://vod-stream.nhk.jp/gogaku-stream/";
+//	protected static String AKAMAI = "https://vod-stream.nhk.jp/gogaku-stream/";
+	protected static String AKAMAI = "https://www.nhk.or.jp/radio-api/app/v1/web/ondemand/series";
 //	protected static String type = "3gp";
 	private PowerManager.WakeLock mWakeLock;
 

@@ -5,7 +5,7 @@ android {
 
     defaultConfig {
         applicationId "com.github.naofum.gogakudroid"
-        minSdkVersion 21
+        minSdkVersion 24
         targetSdkVersion 35
         multiDexEnabled true
     }
@@ -16,12 +16,17 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
         }
     }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
     namespace 'com.github.naofum.gogakudroid'
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'com.google.android.gms:play-services-ads:23.3.0'
-    implementation 'com.arthenica:ffmpeg-kit-full:5.1.LTS'
-    implementation 'com.squareup.okhttp3:okhttp:4.10.0'
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'com.google.android.gms:play-services-ads:23.6.0'
+    implementation 'com.moizhassan.ffmpeg:ffmpeg-kit-16kb:6.0.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }
