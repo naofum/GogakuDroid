@@ -27,6 +27,7 @@ android {
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.1'
     implementation 'com.google.android.gms:play-services-ads:23.6.0'
-    implementation 'com.moizhassan.ffmpeg:ffmpeg-kit-16kb:6.0.0'
+//    implementation 'com.moizhassan.ffmpeg:ffmpeg-kit-16kb:6.0.0'
+    implementation 'io.github.maxrave-dev:ffmpeg-kit-audio:6.0.1'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }

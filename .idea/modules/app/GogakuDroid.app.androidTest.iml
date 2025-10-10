@@ -68,7 +68,7 @@
     <orderEntry type="library" scope="TEST" name="Gradle: com.google.android.gms:play-services-appset:16.0.1@aar" level="project" />
     <orderEntry type="library" scope="TEST" name="Gradle: com.google.android.gms:play-services-base:18.0.0@aar" level="project" />
     <orderEntry type="library" scope="TEST" name="Gradle: com.google.android.gms:play-services-tasks:18.2.0@aar" level="project" />
-    <orderEntry type="library" scope="TEST" name="Gradle: com.moizhassan.ffmpeg:ffmpeg-kit-16kb:6.0.0@aar" level="project" />
+    <orderEntry type="library" scope="TEST" name="Gradle: io.github.maxrave-dev:ffmpeg-kit-audio:6.0.1@aar" level="project" />
     <orderEntry type="library" scope="TEST" name="Gradle: androidx.annotation:annotation-jvm:1.6.0" level="project" />
     <orderEntry type="library" scope="TEST" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib:1.9.10" level="project" />
     <orderEntry type="library" scope="TEST" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib-common:1.9.10" level="project" />
