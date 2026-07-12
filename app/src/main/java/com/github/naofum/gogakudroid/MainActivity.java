@@ -115,7 +115,7 @@ public class MainActivity extends Activity {
 // 		MULTILINGUAL.put("4410", "まいにちドイツ語_応用編");
 		MULTILINGUAL.put("XQ487ZM61K", "まいにちフランス語");
 //		MULTILINGUAL.put("4412", "まいにちフランス語_応用編");
-		MULTILINGUAL.put("09NRZWXVGQ19", "まいにちスペイン語");
+		MULTILINGUAL.put("NRZWXVGQ19", "まいにちスペイン語");
 //        MULTILINGUAL.put("4413", "まいにちスペイン語_中級編_応用編");
 		MULTILINGUAL.put("YRLK72JZ7Q", "まいにちロシア語");
 //        MULTILINGUAL.put("4414", "まいにちロシア語_応用編");

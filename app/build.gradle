@@ -1,12 +1,12 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.github.naofum.gogakudroid"
         minSdkVersion 24
-        targetSdkVersion 35
+        targetSdk 36
         multiDexEnabled true
     }
 
@@ -26,7 +26,7 @@ android {
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.1'
-    implementation 'com.google.android.gms:play-services-ads:23.6.0'
+    implementation 'com.google.android.gms:play-services-ads:25.4.0'
 //    implementation 'com.moizhassan.ffmpeg:ffmpeg-kit-16kb:6.0.0'
     implementation 'io.github.maxrave-dev:ffmpeg-kit-audio:6.0.1'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
