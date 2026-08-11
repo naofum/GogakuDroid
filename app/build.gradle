@@ -27,6 +27,9 @@ android {
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.preference:preference:1.2.1'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.viewpager2:viewpager2:1.1.0'
     implementation 'com.google.android.gms:play-services-ads:25.4.0'
 //    implementation 'com.moizhassan.ffmpeg:ffmpeg-kit-16kb:6.0.0'
     implementation 'io.github.maxrave-dev:ffmpeg-kit-audio:6.0.1'

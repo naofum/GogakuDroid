@@ -16,17 +16,67 @@
  */
 package com.github.naofum.gogakudroid;
 
-import com.github.naofum.gogakudroid.R;
-
-import android.preference.PreferenceActivity;
 import android.os.Bundle;
 
-public class Preference extends PreferenceActivity {
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.preference.PreferenceFragmentCompat;
+import androidx.preference.PreferenceManager;
 
-	@Override
-	public void onCreate(Bundle savedInstanceState) {
-	    super.onCreate(savedInstanceState);
-	    addPreferencesFromResource(R.xml.preferences);
-	}
+public class Preference extends AppCompatActivity {
 
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        String theme = PreferenceManager.getDefaultSharedPreferences(this).getString("theme", "AppBaseTheme");
+        if (theme.equals("Theme.Holo")) {
+            setTheme(R.style.AppTheme_Dark);
+        } else if (theme.equals("Theme.Holo.Light")) {
+            setTheme(R.style.AppTheme_Light);
+        } else {
+            setTheme(R.style.AppTheme_LightDarkActionBar);
+        }
+
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_preference);
+        setTitle(R.string.title_activity_preference);
+
+        // Apply window insets for edge-to-edge
+        ViewCompat.setOnApplyWindowInsetsListener(
+                findViewById(R.id.preference_container), (view, windowInsets) -> {
+                    Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+                    view.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+                    return WindowInsetsCompat.CONSUMED;
+                });
+
+        if (savedInstanceState == null) {
+            getSupportFragmentManager()
+                    .beginTransaction()
+                    .replace(R.id.settings_content, new PreferenceFragment())
+                    .commit();
+        }
+
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
+    }
+
+    @Override
+    public boolean onSupportNavigateUp() {
+        finish();
+        return true;
+    }
+
+    public static class PreferenceFragment extends PreferenceFragmentCompat {
+        @Override
+        public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
+            setPreferencesFromResource(R.xml.preferences, rootKey);
+
+            findPreference("theme").setOnPreferenceChangeListener((preference, newValue) -> {
+                requireActivity().recreate();
+                return true;
+            });
+        }
+    }
 }

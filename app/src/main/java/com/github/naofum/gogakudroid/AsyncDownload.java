@@ -17,12 +17,10 @@
 package com.github.naofum.gogakudroid;
 
 import android.app.Activity;
-import android.app.ProgressDialog;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -33,7 +31,6 @@ import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.util.Xml;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.github.naofum.gogakudroid.ShellUtils.ShellCallback;
@@ -55,7 +52,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringReader;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -76,7 +76,6 @@ public class AsyncDownload {
 	public boolean isWakeLock;
 	private String receiveStr;
 	protected FfmpegController fc;
-	public ProgressDialog progressDialog;
 
 	private static final String TAG = AsyncDownload.class.getSimpleName();
 	private static final String AKAMAI = "https://www.nhk.or.jp/radio-api/app/v1/web/ondemand/series";
@@ -88,6 +87,7 @@ public class AsyncDownload {
 
 	private volatile int available = 0;
 	private static final OkHttpClient client = new OkHttpClient();
+	private int currentItemIndex = -1;
 
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 	private final Handler handler = new Handler(Looper.getMainLooper());
@@ -135,14 +135,13 @@ public class AsyncDownload {
 
 		lastMessage = "";
 
-		progressDialog = new ProgressDialog(owner);
-		progressDialog.setMessage(owner.getString(R.string.downloading));
-		progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-		progressDialog.setCancelable(true);
-		progressDialog.setCanceledOnTouchOutside(false);
-		progressDialog.setProgress(0);
-		progressDialog.setSecondaryProgress(0);
-		progressDialog.show();
+		// Start indexing after existing items in the download list
+		DownloadFragment df = ((MainActivity) owner).getDownloadFragment();
+		if (df != null) {
+			currentItemIndex = df.getItemCount() - 1;
+		} else {
+			currentItemIndex = -1;
+		}
 	}
 
 
@@ -211,8 +210,39 @@ public class AsyncDownload {
 								nendo = xmlPullParser.getAttributeValue(null, "nendo");
 								lastKouza = kouza;
 								lastHdate = hdate;
+								final String itemTitle = kouza + "_" + hdate;
+								currentItemIndex++;
+								final int idx = currentItemIndex;
+								final boolean willSkip = isSkip && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+										&& isMediaExist(kouza + "_" + hdate + "." + type);
+								handler.post(() -> {
+									DownloadFragment df = ((MainActivity) owner).getDownloadFragment();
+									if (df != null) {
+										DownloadItem item = new DownloadItem(itemTitle);
+										df.addItem(item);
+										if (willSkip) {
+											df.updateItem(idx, 100, DownloadItem.Status.SKIPPED);
+										} else {
+											df.updateItem(idx, 0, DownloadItem.Status.DOWNLOADING);
+										}
+									}
+								});
 								download(koza[i], kouza, hdate, file, nendo, type);
-								publishProgress(perc, currentkoza);
+								final String msg = lastMessage;
+								if (!willSkip) {
+									handler.post(() -> {
+										DownloadFragment df = ((MainActivity) owner).getDownloadFragment();
+										if (df != null) {
+											DownloadItem.Status st = DownloadItem.Status.COMPLETED;
+											if (msg != null && msg.equals(owner.getString(R.string.skipped))) {
+												st = DownloadItem.Status.SKIPPED;
+											} else if (msg != null && msg.equals(owner.getString(R.string.failed))) {
+												st = DownloadItem.Status.FAILED;
+											}
+											df.updateItem(idx, 100, st);
+										}
+									});
+								}
 								if (isCancelled()) {
 									return owner.getString(R.string.cancelled);
 								}
@@ -236,8 +266,39 @@ public class AsyncDownload {
 						lastKouza = kouza;
 						String hdate = file.getString("onair_date");
 						lastHdate = hdate;
+						final String itemTitle = kouza + "_" + hdate;
+						currentItemIndex++;
+						final int idx = currentItemIndex;
+						final boolean willSkip = isSkip && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+								&& isMediaExist(kouza + "_" + hdate + "." + type);
+						handler.post(() -> {
+							DownloadFragment df = ((MainActivity) owner).getDownloadFragment();
+							if (df != null) {
+								DownloadItem item = new DownloadItem(itemTitle);
+								df.addItem(item);
+								if (willSkip) {
+									df.updateItem(idx, 100, DownloadItem.Status.SKIPPED);
+								} else {
+									df.updateItem(idx, 0, DownloadItem.Status.DOWNLOADING);
+								}
+							}
+						});
 						download2(koza[i], kouza, hdate, file_name, "", type);
-						publishProgress(perc, currentkoza);
+						final String msg = lastMessage;
+						if (!willSkip) {
+							handler.post(() -> {
+								DownloadFragment df = ((MainActivity) owner).getDownloadFragment();
+								if (df != null) {
+									DownloadItem.Status st = DownloadItem.Status.COMPLETED;
+									if (msg != null && msg.equals(owner.getString(R.string.skipped))) {
+										st = DownloadItem.Status.SKIPPED;
+									} else if (msg != null && msg.equals(owner.getString(R.string.failed))) {
+										st = DownloadItem.Status.FAILED;
+									}
+									df.updateItem(idx, 100, st);
+								}
+							});
+						}
 						if (isCancelled()) {
 							return owner.getString(R.string.cancelled);
 						}
@@ -252,43 +313,32 @@ public class AsyncDownload {
 
 
 	private void onProgressUpdate(Integer... values) {
-		progressDialog.setProgress(values[0]);
-		progressDialog.setSecondaryProgress(values[1]);
-		progressDialog.setMessage(owner.getString(R.string.downloading) + "\n" + lastKouza + "_" + lastHdate);
-		try {
-			Thread.sleep(100);
-		} catch (InterruptedException e) {
-			//
+		// Update download fragment progress
+		if (currentItemIndex >= 0) {
+			DownloadFragment df = ((MainActivity) owner).getDownloadFragment();
+			if (df != null) {
+				df.updateItem(currentItemIndex, values[0], DownloadItem.Status.DOWNLOADING);
+			}
 		}
 	}
 
 	private void onCancelled() {
-		if (progressDialog != null && progressDialog.isShowing()) {
-			try {
-				progressDialog.dismiss();
-			} catch (Exception e) {
-				//
-			}
-		}
 	}
 
 	private void onPostExecute(String result) {
 		if (mWakeLock != null && mWakeLock.isHeld())
 			mWakeLock.release();
 		((MainActivity) owner).mTask = null;
-		if (progressDialog != null && progressDialog.isShowing()) {
-			try {
-				progressDialog.dismiss();
-			} catch (Exception e) {
-				//
-			}
-		}
 
 		available = 0;
 
-		TextView textView1 = (TextView) owner.findViewById(R.id.textView1);
-		textView1.setText(lastMessage);
 		Toast.makeText(owner, lastMessage, Toast.LENGTH_LONG).show();
+
+		// Update status text on CoursesFragment
+		CoursesFragment cf = ((MainActivity) owner).getCoursesFragment();
+		if (cf != null) {
+			cf.setStatusText(owner.getString(R.string.finished));
+		}
 	}
 
 
@@ -299,7 +349,7 @@ public class AsyncDownload {
 		File dir = new File(MainActivity.FILES_DIR.getPath() + "/" + kouza);
 		dir.mkdirs();
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-			if (isSkip && isMediaExist(kouza + "_" + hdate)) {
+			if (isSkip && isMediaExist(kouza + "_" + hdate + "." + type)) {
 				lastMessage = owner.getString(R.string.skipped);
 				return;
 			}
@@ -365,7 +415,7 @@ public class AsyncDownload {
 		File workdir = new File(MainActivity.FILES_DIR.getPath());
 
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-			if (isSkip && isMediaExist(kouza + "_" + hdate)) {
+			if (isSkip && isMediaExist(kouza + "_" + hdate + "." + type)) {
 				lastMessage = owner.getString(R.string.skipped);
 				return;
 			}
@@ -677,31 +727,119 @@ public class AsyncDownload {
 			contentValues.put(MediaStore.Downloads.IS_PENDING, 0);
 			resolver.update(item, contentValues, null, null);
 		}
+		markMediaDownloaded(inputFile);
+
+		// Save content URI for existence check and playback
+		if (item != null) {
+			owner.getSharedPreferences("downloaded_uris", Context.MODE_PRIVATE)
+					.edit().putString(inputFile, item.toString()).apply();
+		}
+
+		// Set content URI for playback
+		final Uri mediaUri = item;
+		final int idx = currentItemIndex;
+		handler.post(() -> {
+			DownloadFragment df = ((MainActivity) owner).getDownloadFragment();
+			if (df != null) {
+				df.setItemUri(idx, mediaUri);
+			}
+		});
 	}
 
+	private static final int MAX_DOWNLOAD_HISTORY = 500;
+
 	private boolean isMediaExist(String inputFile) {
-		boolean found = false;
-		Uri collection;
+		Log.d("GogakuDroid", "Search: " + inputFile);
+		// Debug: dump all accessible audio media information
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-			collection = MediaStore.Downloads.getContentUri(
-					MediaStore.VOLUME_EXTERNAL_PRIMARY);
+			Uri audioUri = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL);
+			String[] projection = {
+					MediaStore.Audio.Media._ID,
+					MediaStore.Audio.Media.TITLE,
+					MediaStore.Audio.Media.DISPLAY_NAME,
+					MediaStore.Audio.Media.RELATIVE_PATH,
+					MediaStore.Audio.Media.MIME_TYPE,
+					MediaStore.Audio.Media.SIZE,
+					MediaStore.Audio.Media.DURATION,
+					MediaStore.Audio.Media.DATE_ADDED,
+					MediaStore.Audio.Media.DATE_MODIFIED,
+					MediaStore.Audio.Media.ARTIST,
+					MediaStore.Audio.Media.ALBUM
+			};
+			try (android.database.Cursor cursor = owner.getContentResolver().query(
+					audioUri, projection, null, null, null)) {
+				if (cursor != null) {
+					Log.d("GogakuDroid", "=== Audio Media List (total: " + cursor.getCount() + ") ===");
+					while (cursor.moveToNext()) {
+						StringBuilder sb = new StringBuilder();
+						for (int i = 0; i < cursor.getColumnCount(); i++) {
+							if (i > 0) sb.append(", ");
+							sb.append(cursor.getColumnName(i)).append("=").append(cursor.getString(i));
+						}
+						Log.d("GogakuDroid", sb.toString());
+					}
+					Log.d("GogakuDroid", "=== End Audio Media List ===");
+				}
+			} catch (Exception e) {
+				Log.e("GogakuDroid", "Failed to query audio media", e);
+			}
+		}
+
+		SharedPreferences pref = owner.getSharedPreferences("downloaded_files", Context.MODE_PRIVATE);
+		if (!pref.contains(inputFile)) {
+			return false;
+		}
+		// Verify the file still exists
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+			// Search by TITLE (filename without extension)
+			String title = inputFile.contains(".") ? inputFile.substring(0, inputFile.lastIndexOf(".")) : inputFile;
+			String display_name = inputFile.replace(":", "_");
+			Log.d("GogakuDroid", "Search display_name: " + display_name);
+			Uri audioUri = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL);
+			try (android.database.Cursor cursor = owner.getContentResolver().query(
+					audioUri,
+					new String[]{ MediaStore.Audio.Media._ID },
+					MediaStore.Audio.Media.DISPLAY_NAME + " = ?",
+					new String[]{ display_name },
+					null)) {
+				if (cursor != null && cursor.moveToFirst()) {
+					Log.d("GogakuDroid", "Search file still exist: " + inputFile);
+					return true;
+				}
+			} catch (Exception e) {
+				Log.e("GogakuDroid", "Failed to query audio by title: " + title, e);
+			}
 		} else {
-			collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+			File file = new File(Environment.getExternalStoragePublicDirectory(
+					Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() + "/" + inputFile);
+			if (file.exists()) {
+				return true;
+			}
 		}
-		ContentResolver resolver = owner.getContentResolver();
-		Cursor cursor = resolver.query(collection,
-				new String[]{
-						MediaStore.Downloads.DISPLAY_NAME
-				},
-				MediaStore.Downloads.DISPLAY_NAME + " LIKE ?",
-				new String[]{
-						inputFile + "%"
-				}, null);
-		while (cursor.moveToNext()) {
-			String title = cursor.getString(0);
-			found = true;
+		// File no longer exists, remove stale record
+		pref.edit().remove(inputFile).apply();
+		owner.getSharedPreferences("downloaded_uris", Context.MODE_PRIVATE)
+				.edit().remove(inputFile).apply();
+		return false;
+	}
+
+	private void markMediaDownloaded(String inputFile) {
+		SharedPreferences pref = owner.getSharedPreferences("downloaded_files", Context.MODE_PRIVATE);
+		SharedPreferences.Editor editor = pref.edit();
+		editor.putLong(inputFile, System.currentTimeMillis());
+
+		// Evict oldest entries if over limit
+		Map<String, ?> all = pref.getAll();
+		if (all.size() >= MAX_DOWNLOAD_HISTORY) {
+			List<Map.Entry<String, ?>> entries = new ArrayList<>(all.entrySet());
+			entries.sort((a, b) -> Long.compare(
+					(Long) a.getValue(), (Long) b.getValue()));
+			int removeCount = entries.size() - MAX_DOWNLOAD_HISTORY + 1;
+			for (int i = 0; i < removeCount; i++) {
+				editor.remove(entries.get(i).getKey());
+			}
 		}
-		return found;
+		editor.apply();
 	}
 
 	private boolean isFileExist(String inputFile) {
@@ -741,6 +879,17 @@ public class AsyncDownload {
 
 			// delete the original file
 			new File(inputPath + inputFile).delete();
+			markMediaDownloaded(inputFile);
+
+			// Set file URI for playback
+			final Uri fileUri = Uri.fromFile(new File(outputPath + inputFile));
+			final int idx = currentItemIndex;
+			handler.post(() -> {
+				DownloadFragment df = ((MainActivity) owner).getDownloadFragment();
+				if (df != null) {
+					df.setItemUri(idx, fileUri);
+				}
+			});
 
 		} catch (FileNotFoundException fnfe1) {
 			Log.e("tag", fnfe1.getMessage());

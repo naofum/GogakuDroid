@@ -30,6 +30,16 @@
     <string name="conn_error">Network connection error.</string>
     <string name="parse_error">XML parse error.</string>
     <string name="permission_denied">Storage permission denied. Cannot download.</string>
+    <string name="no_downloads">No downloads.</string>
+    <string name="clear_list">Clear</string>
+    <string name="play">Play</string>
+    <string name="tab_courses">Courses</string>
+    <string name="tab_download">Download</string>
+    <string name="status_waiting">Waiting</string>
+    <string name="status_downloading">Downloading</string>
+    <string name="status_completed">Completed</string>
+    <string name="status_failed">Failed</string>
+    <string name="status_skipped">Skipped</string>
 
     <string-array name="theme">
         <item>Dark</item>

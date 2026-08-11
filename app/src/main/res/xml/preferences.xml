@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen 
   xmlns:android="http://schemas.android.com/apk/res/android">
-    <CheckBoxPreference
+    <SwitchPreferenceCompat
         android:defaultValue="true"
         android:key="skip_file"
         android:summary="@string/skip_file_desc"
         android:title="@string/skip_file" />
-    <CheckBoxPreference
+    <SwitchPreferenceCompat
         android:defaultValue="true"
         android:key="wake_lock"
         android:summary="@string/wake_lock_desc"
@@ -25,8 +25,4 @@
         android:key="theme"
         android:summary="@string/theme_desc"
         android:title="@string/theme" />
-    <CheckBoxPreference
-        android:key="overwrite_bin"
-        android:summary="@string/overwrite_bin_desc"
-        android:title="@string/overwrite_bin" />
 </PreferenceScreen>

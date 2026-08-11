@@ -30,6 +30,16 @@
     <string name="conn_error">ネットワーク接続エラー.</string>
     <string name="parse_error">XML 解析エラー.</string>
     <string name="permission_denied">ストレージへのアクセスが許可されていないためダウンロードできません.</string>
+    <string name="no_downloads">ダウンロードはありません.</string>
+    <string name="clear_list">クリア</string>
+    <string name="play">再生</string>
+    <string name="tab_courses">番組選択</string>
+    <string name="tab_download">ダウンロード</string>
+    <string name="status_waiting">待機中</string>
+    <string name="status_downloading">ダウンロード中</string>
+    <string name="status_completed">完了</string>
+    <string name="status_failed">失敗</string>
+    <string name="status_skipped">スキップ</string>
 
     <string-array name="theme">
         <item>ダーク</item>
