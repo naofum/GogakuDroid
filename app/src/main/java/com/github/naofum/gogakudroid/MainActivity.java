@@ -45,6 +45,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 import androidx.viewpager2.widget.ViewPager2;
 
@@ -67,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
 	private ViewPager2 viewPager;
 	private CoursesFragment coursesFragment;
 	private DownloadFragment downloadFragment;
+	private MainViewModel viewModel;
 
 	static {
 		ENGLISH.put("english/basic0", "小学生の基礎英語");
@@ -105,10 +107,10 @@ public class MainActivity extends AppCompatActivity {
 		MULTILINGUAL.put("XQ487ZM61K", "まいにちフランス語");
 		MULTILINGUAL.put("NRZWXVGQ19", "まいにちスペイン語");
 		MULTILINGUAL.put("YRLK72JZ7Q", "まいにちロシア語");
-		MULTILINGUAL.put("WKMNWGMN6R", "アラビア語講座");
+//		MULTILINGUAL.put("WKMNWGMN6R", "アラビア語講座");
 		MULTILINGUAL.put("N13V9K157Y", "ポルトガル語");
-		MULTILINGUAL.put("4MY6Q8XP88", "Living_in_Japan");
-		MULTILINGUAL.put("6LPPKP6W8Q", "やさしい日本語");
+//		MULTILINGUAL.put("4MY6Q8XP88", "Living_in_Japan");
+//		MULTILINGUAL.put("6LPPKP6W8Q", "やさしい日本語");
 	}
 
 	protected static File FILES_DIR;
@@ -192,6 +194,9 @@ public class MainActivity extends AppCompatActivity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
+		// Initialize ViewModel
+		viewModel = new ViewModelProvider(this).get(MainViewModel.class);
+
 		// Apply window insets for edge-to-edge
 		androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(
 				findViewById(R.id.main_view), (view, windowInsets) -> {
@@ -233,6 +238,42 @@ public class MainActivity extends AppCompatActivity {
 			}
 		}).attach();
 
+		// Observe ViewModel
+		viewModel.getStatusMessage().observe(this, message -> {
+			if (coursesFragment != null && message != null) {
+				coursesFragment.setStatusText(message);
+			}
+		});
+
+		viewModel.getAddItemEvent().observe(this, event -> {
+			if (event != null && downloadFragment != null) {
+				downloadFragment.addItem(event.item);
+				if (event.initialStatus == DownloadItem.Status.SKIPPED) {
+					downloadFragment.updateItem(event.index, 100, DownloadItem.Status.SKIPPED);
+				} else {
+					downloadFragment.updateItem(event.index, 0, event.initialStatus);
+				}
+			}
+		});
+
+		viewModel.getUpdateItemEvent().observe(this, event -> {
+			if (event != null && downloadFragment != null) {
+				downloadFragment.updateItem(event.index, event.progress, event.status);
+			}
+		});
+
+		viewModel.getSetItemUriEvent().observe(this, event -> {
+			if (event != null && downloadFragment != null) {
+				downloadFragment.setItemUri(event.index, event.uri);
+			}
+		});
+
+		viewModel.getIsDownloading().observe(this, downloading -> {
+			if (coursesFragment != null) {
+				coursesFragment.setButtonEnabled(!downloading);
+			}
+		});
+
 		// Ads
 		MobileAds.initialize(this, new OnInitializationCompleteListener() {
 			@Override
@@ -259,6 +300,10 @@ public class MainActivity extends AppCompatActivity {
 
 	public CoursesFragment getCoursesFragment() {
 		return coursesFragment;
+	}
+
+	public MainViewModel getViewModel() {
+		return viewModel;
 	}
 
 	@Override
