@@ -18,6 +18,7 @@ import java.util.StringTokenizer;
 
 import com.arthenica.ffmpegkit.FFmpegKitConfig;
 import com.arthenica.ffmpegkit.FFmpegKit;
+import com.arthenica.ffmpegkit.FFmpegSession;
 import com.arthenica.ffmpegkit.Log;
 import com.arthenica.ffmpegkit.LogCallback;
 
@@ -88,8 +89,10 @@ public class FfmpegController {
 		});
 */
 
-		FFmpegKit.execute(commands.toString());
-		sc.processComplete(0);
+		FFmpegSession session = FFmpegKit.execute(commands.toString());
+		sc.processComplete(session.getReturnCode().getValue());
+//		FFmpegKit.execute(commands.toString());
+//		sc.processComplete(0);
 		/*
 		FFmpeg.execute(commands.toString());
 
@@ -770,23 +773,23 @@ out.avi – create this output file. Change it as you like, for example using an
 		cmd.add("3");
 
 		cmd.add("-metadata");
-		cmd.add("title=\"" + title + "\"");
+		cmd.add("title=" + title);
 		
 		cmd.add("-metadata");
-		cmd.add("artist=\"NHK\"");
+		cmd.add("artist=NHK");
 		
 		cmd.add("-metadata");
         if (title.indexOf("_") > -1) {
-            cmd.add("album=\"" + title.substring(0, title.indexOf("_")) + "\"");
+            cmd.add("album=" + title.substring(0, title.indexOf("_")));
         } else {
-            cmd.add("album=\"" + title + "\"");
+            cmd.add("album=" + title);
         }
 
 		cmd.add("-metadata");
-		cmd.add("date=\"" + date + "\"");
+		cmd.add("date=" + date);
 		
 		cmd.add("-metadata");
-		cmd.add("genre=\"Speech\"");
+		cmd.add("genre=Speech");
 		
 //		cmd.add("-bsf:a");
 //		cmd.add("aac_adtstoasc");

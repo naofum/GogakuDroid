@@ -24,20 +24,17 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.util.Xml;
-import android.view.View;
-import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import androidx.annotation.RequiresApi;
 
 import com.github.naofum.gogakudroid.ShellUtils.ShellCallback;
 
@@ -57,19 +54,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Objects;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
-public class AsyncDownload extends AsyncTask<String, Integer, String> {
+public class AsyncDownload {
 
 	public Activity owner;
 	public String lastKouza;
@@ -80,58 +76,77 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 	public boolean isWakeLock;
 	private String receiveStr;
 	protected FfmpegController fc;
-	protected ProgressDialog progressDialog;
+	public ProgressDialog progressDialog;
 
-	protected static String TAG = AsyncDownload.class.getSimpleName();
-//	protected static String AKAMAI = "https://vod-stream.nhk.jp/gogaku-stream/";
-	protected static String AKAMAI = "https://www.nhk.or.jp/radio-api/app/v1/web/ondemand/series";
-//	protected static String type = "3gp";
+	private static final String TAG = AsyncDownload.class.getSimpleName();
+	private static final String AKAMAI = "https://www.nhk.or.jp/radio-api/app/v1/web/ondemand/series";
 	private PowerManager.WakeLock mWakeLock;
 
 	private long duration;
 	private int perc;
 	private int currentkoza;
 
-	private static int available = 0;
-	private OkHttpClient client = new OkHttpClient();
+	private volatile int available = 0;
+	private static final OkHttpClient client = new OkHttpClient();
+
+	private final ExecutorService executor = Executors.newSingleThreadExecutor();
+	private final Handler handler = new Handler(Looper.getMainLooper());
+	private final AtomicBoolean cancelled = new AtomicBoolean(false);
 
 	public AsyncDownload(Activity activity) {
 		owner = activity;
-
 	}
 
-	@Override
-	protected void onPreExecute() {
-        super.onPreExecute();
-	    Log.d(TAG, "onPreExecute");
+	public void execute(String[] koza) {
+		onPreExecute();
+		executor.execute(() -> {
+			String result = doInBackground(koza);
+			handler.post(() -> onPostExecute(result));
+		});
+	}
 
-	    // take CPU lock to prevent CPU from going off if the user 
-        // presses the power button during download
-		SharedPreferences sharedPref = 
-		        PreferenceManager.getDefaultSharedPreferences(owner);
+	public void cancel(boolean mayInterruptIfRunning) {
+		cancelled.set(true);
+		executor.shutdownNow();
+		handler.post(this::onCancelled);
+	}
+
+	public boolean isCancelled() {
+		return cancelled.get();
+	}
+
+	private void publishProgress(Integer... values) {
+		handler.post(() -> onProgressUpdate(values));
+	}
+
+	private void onPreExecute() {
+		Log.d(TAG, "onPreExecute");
+
+		SharedPreferences sharedPref =
+				PreferenceManager.getDefaultSharedPreferences(owner);
 		isWakeLock = sharedPref.getBoolean("wake_lock", true);
-        PowerManager pm = (PowerManager) owner.getSystemService(Context.POWER_SERVICE);
-        mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
-             getClass().getName());
-        if (isWakeLock) {
-            mWakeLock.acquire();
-        }
+		PowerManager pm = (PowerManager) owner.getSystemService(Context.POWER_SERVICE);
+		mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
+				getClass().getName());
+		if (isWakeLock) {
+			mWakeLock.acquire();
+		}
 		available = 0;
 
-        lastMessage = "";
+		lastMessage = "";
 
-        progressDialog = new ProgressDialog(owner);
-	    progressDialog.setMessage(owner.getString(R.string.downloading));
-	    progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-	    progressDialog.setCancelable(true);
-	    progressDialog.setCanceledOnTouchOutside(false);
-        progressDialog.setProgress(0);
+		progressDialog = new ProgressDialog(owner);
+		progressDialog.setMessage(owner.getString(R.string.downloading));
+		progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+		progressDialog.setCancelable(true);
+		progressDialog.setCanceledOnTouchOutside(false);
+		progressDialog.setProgress(0);
 		progressDialog.setSecondaryProgress(0);
-	    progressDialog.show();
+		progressDialog.show();
 	}
 
-	  @Override
-	protected String doInBackground(String[] koza) {
+
+	private String doInBackground(String[] koza) {
 		File fileTmp = new File("tmp");
 		try {
 			fc = new FfmpegController(owner, fileTmp);
@@ -140,30 +155,30 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 			return owner.getString(R.string.init_error);
 		}
 
-		SharedPreferences sharedPref = 
-		        PreferenceManager.getDefaultSharedPreferences(owner);
+		SharedPreferences sharedPref =
+				PreferenceManager.getDefaultSharedPreferences(owner);
 		String type = sharedPref.getString("type", "m4a");
 		isSkip = sharedPref.getBoolean("skip_file", true);
 
-//		progressDialog.setMax(koza.length);
 		String url = null;
-        for (int i = 0; i < koza.length; i++) {
+		for (int i = 0; i < koza.length; i++) {
 			currentkoza = 100 * i / koza.length;
-        	// file index of this week
-        	if (MainActivity.ENGLISH.containsKey(koza[i])) {
-        	    url = "https://www.nhk.or.jp/gogaku/st/xml/" + koza[i] + "/listdataflv.xml";
-        	} else {
+			if (MainActivity.ENGLISH.containsKey(koza[i])) {
+				url = "https://www.nhk.or.jp/gogaku/st/xml/" + koza[i] + "/listdataflv.xml";
+			} else {
 				url = "https://www.nhk.or.jp/radio-api/app/v1/web/ondemand/series?site_id=" + koza[i] + "&corner_site_id=01";
-        	}
+			}
 			try {
 				Request request = new Request.Builder()
 						.url(url)
 						.build();
 				Response response = client.newCall(request).execute();
 				if (!response.isSuccessful()) {
+					response.close();
 					throw new Exception("");
 				} else {
 					receiveStr = response.body().string();
+					response.close();
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -174,7 +189,7 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 			if (receiveStr.charAt(0) == '<') {
 				XmlPullParser xmlPullParser = Xml.newPullParser();
 				try {
-					xmlPullParser.setInput( new StringReader ( receiveStr ) );
+					xmlPullParser.setInput(new StringReader(receiveStr));
 				} catch (XmlPullParserException e) {
 					Log.d(TAG, e.toString());
 					return owner.getString(R.string.parse_error);
@@ -187,7 +202,7 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 					int eventType;
 					eventType = xmlPullParser.getEventType();
 					while (eventType != XmlPullParser.END_DOCUMENT) {
-						if(eventType == XmlPullParser.START_TAG) {
+						if (eventType == XmlPullParser.START_TAG) {
 							if (xmlPullParser.getName().equals("music")) {
 								kouza = xmlPullParser.getAttributeValue(null, "kouza");
 								hdate = xmlPullParser.getAttributeValue(null, "hdate");
@@ -235,19 +250,48 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		return lastMessage;
 	}
 
-	@Override
-	protected void onProgressUpdate(Integer... values) {
-//		super.onProgressUpdate(values[0]);
+
+	private void onProgressUpdate(Integer... values) {
 		progressDialog.setProgress(values[0]);
-        progressDialog.setSecondaryProgress(values[1]);
+		progressDialog.setSecondaryProgress(values[1]);
 		progressDialog.setMessage(owner.getString(R.string.downloading) + "\n" + lastKouza + "_" + lastHdate);
-        try {
+		try {
 			Thread.sleep(100);
 		} catch (InterruptedException e) {
-        	//
+			//
 		}
 	}
-	  
+
+	private void onCancelled() {
+		if (progressDialog != null && progressDialog.isShowing()) {
+			try {
+				progressDialog.dismiss();
+			} catch (Exception e) {
+				//
+			}
+		}
+	}
+
+	private void onPostExecute(String result) {
+		if (mWakeLock != null && mWakeLock.isHeld())
+			mWakeLock.release();
+		((MainActivity) owner).mTask = null;
+		if (progressDialog != null && progressDialog.isShowing()) {
+			try {
+				progressDialog.dismiss();
+			} catch (Exception e) {
+				//
+			}
+		}
+
+		available = 0;
+
+		TextView textView1 = (TextView) owner.findViewById(R.id.textView1);
+		textView1.setText(lastMessage);
+		Toast.makeText(owner, lastMessage, Toast.LENGTH_LONG).show();
+	}
+
+
 	protected void download(String koza, String kouza, String hdate, String file, String nendo, String type) {
 		Log.d(TAG, "download: " + file);
 		Clip mediaIn = new Clip(file);
@@ -270,7 +314,6 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 				mediaOut.audioCodec = "copy";
 				fc.convertTo3GPAudio(mediaIn, mediaOut, new CommonShellCallBack());
 			} else if (type.equals("3gp")) {
-//				mediaOut.audioCodec = "libopencore_amrnb";
 				mediaOut.audioCodec = "copy";
 				fc.convertTo3GPAudio(mediaIn, mediaOut, new CommonShellCallBack());
 			} else if (type.equals("aac")) {
@@ -301,8 +344,8 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		} catch (Exception e) {
 			Log.e(TAG, e.getMessage());
 		}
-
 	}
+
 
 	protected void download2(String koza, String kouza, String hdate, String file, String nendo, String type) {
 		Log.d(TAG, "download2: " + file);
@@ -334,18 +377,10 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		}
 
 		try {
-			OkHttpClient okclient = new OkHttpClient().newBuilder()
-					.addNetworkInterceptor(new Interceptor() {
-						@Override
-						public Response intercept(Chain chain) throws IOException {
-							return chain.proceed(chain.request());
-						}
-					})
-					.build();
 			Request request = new Request.Builder()
 					.url(file)
 					.build();
-			Response response = okclient.newCall(request).execute();
+			Response response = client.newCall(request).execute();
 			if (!response.isSuccessful()) {
 				Log.d(TAG, String.format("Get m3u8 file error with code: %d", response.code()));
 				return;
@@ -435,7 +470,6 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 				mediaOut.audioCodec = "copy";
 				fc.convertTo3GPAudio(mediaIn, mediaOut, new CommonShellCallBack());
 			} else if (type.equals("3gp")) {
-//				mediaOut.audioCodec = "libopencore_amrnb";
 				mediaOut.audioCodec = "copy";
 				fc.convertTo3GPAudio(mediaIn, mediaOut, new CommonShellCallBack());
 			} else if (type.equals("aac")) {
@@ -476,8 +510,8 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 				afile.delete();
 			}
 		}
-
 	}
+
 
 	protected boolean downloadBinary(String url, String file) {
 		try {
@@ -505,37 +539,6 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		return true;
 	}
 
-	@Override
-	protected void onCancelled() {
-//		fc.cancel();
-		if (progressDialog != null && progressDialog.isShowing()) {
-			try {
-	            progressDialog.dismiss();
-			} catch (Exception e) {
-				//
-			}
-		}
-	}
-
-	@Override
-	protected void onPostExecute(String result) {
-		if (mWakeLock.isHeld())
-			mWakeLock.release();
-		((MainActivity) owner).mTask = null;
-		if (progressDialog != null && progressDialog.isShowing()) {
-			try {
-	            progressDialog.dismiss();
-			} catch (Exception e) {
-				//
-			}
-		}
-
-		available = 0;
-
-		TextView textView1 = (TextView) owner.findViewById(R.id.textView1);
-		textView1.setText(lastMessage);
-		Toast.makeText(owner, lastMessage, Toast.LENGTH_LONG).show();
-	}
 
 	public class CommonShellCallBack implements ShellCallback {
 		@Override
@@ -546,12 +549,12 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 					SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
 					try {
 						Date date1 = sdf.parse(msg.substring(0, 8));
-                        Date date2 = sdf.parse("00:00:00");
+						Date date2 = sdf.parse("00:00:00");
 						duration = date1.getTime() - date2.getTime();
 					} catch (java.text.ParseException e) {
 						//
 					}
-				} else  if (msg.indexOf(" time=") > -1) {
+				} else if (msg.indexOf(" time=") > -1) {
 					SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
 					String time = msg.substring(msg.indexOf(" time=") + 6, msg.indexOf(" time=") + 14);
 					try {
@@ -570,14 +573,13 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 
 		@Override
 		public void processComplete(int exitValue) {
-//			progressDialog.dismiss();
 			((MainActivity) owner).mTask = null;
 			if (exitValue == 0) {
 				lastMessage = owner.getString(R.string.finished);
 				Log.i(TAG, lastMessage);
 			} else if (exitValue == 255) {
-					lastMessage = owner.getString(R.string.cancelled);
-					Log.i(TAG, lastMessage);
+				lastMessage = owner.getString(R.string.cancelled);
+				Log.i(TAG, lastMessage);
 			} else {
 				lastMessage = owner.getString(R.string.failed);
 				Log.i(TAG, lastMessage);
@@ -606,49 +608,41 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 							}
 						}
 					}
-				} else if (subdir.isFile()) {
-					// still remain temp files at this point
-//					storeMedia(dir.getPath() + "/", files[i], "");
-//					Log.i(TAG, "from " + dir.getPath() + "/" + files[i] + " to " + target_dir.getPath());
 				}
 			}
 			available = 0;
-
 		}
 	}
+
 
 	private void storeMedia(String inputPath, String inputFile, String outputPath) {
 		String download_path = Environment.DIRECTORY_DOWNLOADS.substring(Environment.DIRECTORY_DOWNLOADS.lastIndexOf("/") + 1);
 		ContentValues contentValues = new ContentValues();
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-			contentValues.put(MediaStore.Audio.Media.RELATIVE_PATH, download_path + "/" + outputPath);
+			contentValues.put(MediaStore.Downloads.RELATIVE_PATH, download_path + "/" + outputPath);
 		}
-		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-			contentValues.put(MediaStore.Audio.Media.ALBUM, outputPath);
-			contentValues.put(MediaStore.Audio.Media.TITLE, inputFile);
-		}
-		contentValues.put(MediaStore.Audio.Media.DISPLAY_NAME, inputFile);
+		contentValues.put(MediaStore.Downloads.DISPLAY_NAME, inputFile);
 		if (inputFile.endsWith("mp3")) {
-			contentValues.put(MediaStore.Audio.Media.MIME_TYPE, "audio/mpeg");
+			contentValues.put(MediaStore.Downloads.MIME_TYPE, "audio/mpeg");
 		} else if (inputFile.endsWith("og3")) {
-			contentValues.put(MediaStore.Audio.Media.MIME_TYPE, "audio/og3");
+			contentValues.put(MediaStore.Downloads.MIME_TYPE, "audio/og3");
 		} else if (inputFile.endsWith("3gp")) {
-			contentValues.put(MediaStore.Audio.Media.MIME_TYPE, "audio/3gpp");
+			contentValues.put(MediaStore.Downloads.MIME_TYPE, "audio/3gpp");
 		} else if (inputFile.endsWith("3g2")) {
-			contentValues.put(MediaStore.Audio.Media.MIME_TYPE, "audio/3gpp2");
+			contentValues.put(MediaStore.Downloads.MIME_TYPE, "audio/3gpp2");
 		} else if (inputFile.endsWith("m4a")) {
-			contentValues.put(MediaStore.Audio.Media.MIME_TYPE, "audio/x-m4a");
+			contentValues.put(MediaStore.Downloads.MIME_TYPE, "audio/x-m4a");
 		} else {
-			contentValues.put(MediaStore.Audio.Media.MIME_TYPE, "audio/aac");
+			contentValues.put(MediaStore.Downloads.MIME_TYPE, "audio/aac");
 		}
 
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-			contentValues.put(MediaStore.Audio.Media.IS_PENDING, 1);
+			contentValues.put(MediaStore.Downloads.IS_PENDING, 1);
 		}
 		ContentResolver resolver = owner.getContentResolver();
 		Uri collection;
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-			collection = MediaStore.Files.getContentUri(
+			collection = MediaStore.Downloads.getContentUri(
 					MediaStore.VOLUME_EXTERNAL_PRIMARY);
 		} else {
 			collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
@@ -680,7 +674,7 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 
 		contentValues.clear();
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-			contentValues.put(MediaStore.Audio.Media.IS_PENDING, 0);
+			contentValues.put(MediaStore.Downloads.IS_PENDING, 0);
 			resolver.update(item, contentValues, null, null);
 		}
 	}
@@ -689,7 +683,7 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		boolean found = false;
 		Uri collection;
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-			collection = MediaStore.Files.getContentUri(
+			collection = MediaStore.Downloads.getContentUri(
 					MediaStore.VOLUME_EXTERNAL_PRIMARY);
 		} else {
 			collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
@@ -697,11 +691,11 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		ContentResolver resolver = owner.getContentResolver();
 		Cursor cursor = resolver.query(collection,
 				new String[]{
-						MediaStore.Audio.Media.TITLE
+						MediaStore.Downloads.DISPLAY_NAME
 				},
-				"title=?",
-				new String[] {
-						inputFile
+				MediaStore.Downloads.DISPLAY_NAME + " LIKE ?",
+				new String[]{
+						inputFile + "%"
 				}, null);
 		while (cursor.moveToNext()) {
 			String title = cursor.getString(0);
@@ -723,14 +717,11 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 		InputStream in = null;
 		OutputStream out = null;
 		try {
-
 			//create output directory if it doesn't exist
-			File dir = new File (outputPath);
-			if (!dir.exists())
-			{
+			File dir = new File(outputPath);
+			if (!dir.exists()) {
 				dir.mkdirs();
 			}
-
 
 			in = new FileInputStream(inputPath + inputFile);
 			out = new FileOutputStream(outputPath + inputFile);
@@ -751,15 +742,10 @@ public class AsyncDownload extends AsyncTask<String, Integer, String> {
 			// delete the original file
 			new File(inputPath + inputFile).delete();
 
-
-		}
-
-		catch (FileNotFoundException fnfe1) {
+		} catch (FileNotFoundException fnfe1) {
 			Log.e("tag", fnfe1.getMessage());
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			Log.e("tag", e.getMessage());
 		}
-
 	}
 }

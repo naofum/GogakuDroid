@@ -29,6 +29,7 @@
     <string name="init_error">初期化エラー.</string>
     <string name="conn_error">ネットワーク接続エラー.</string>
     <string name="parse_error">XML 解析エラー.</string>
+    <string name="permission_denied">ストレージへのアクセスが許可されていないためダウンロードできません.</string>
 
     <string-array name="theme">
         <item>ダーク</item>

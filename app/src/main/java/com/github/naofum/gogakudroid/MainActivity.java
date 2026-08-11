@@ -53,6 +53,7 @@ import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -134,6 +135,20 @@ public class MainActivity extends Activity {
 	protected static File FILES_DIR;
 
 	@Override
+	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+		if (requestCode == 1) {
+			Button btn1 = (Button) findViewById(R.id.button1);
+			if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+				btn1.setEnabled(true);
+			} else {
+				btn1.setEnabled(false);
+				Toast.makeText(this, R.string.permission_denied, Toast.LENGTH_LONG).show();
+			}
+		}
+	}
+
+	@Override
 	protected void onStop() {
 		super.onStop();
 		if (mTask != null) {
@@ -184,7 +199,15 @@ public class MainActivity extends Activity {
 		}
 */
 
-		if (Build.VERSION.SDK_INT >= 23) {
+		if (Build.VERSION.SDK_INT >= 33) {
+			if (ContextCompat.checkSelfPermission(this,
+					"android.permission.READ_MEDIA_AUDIO")
+					!= PackageManager.PERMISSION_GRANTED) {
+				ActivityCompat.requestPermissions(this,
+						new String[]{"android.permission.READ_MEDIA_AUDIO"},
+						1);
+			}
+		} else if (Build.VERSION.SDK_INT >= 23) {
             if (ContextCompat.checkSelfPermission(this,
                     android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
                     != PackageManager.PERMISSION_GRANTED
@@ -266,6 +289,20 @@ public class MainActivity extends Activity {
             	button1_click(v);
             }
         });
+		// Disable button if storage permission is required but not granted
+		if (Build.VERSION.SDK_INT >= 33) {
+			if (ContextCompat.checkSelfPermission(this,
+					"android.permission.READ_MEDIA_AUDIO")
+					!= PackageManager.PERMISSION_GRANTED) {
+				btn1.setEnabled(false);
+			}
+		} else if (Build.VERSION.SDK_INT >= 23 && Build.VERSION.SDK_INT < 29) {
+			if (ContextCompat.checkSelfPermission(this,
+					android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+					!= PackageManager.PERMISSION_GRANTED) {
+				btn1.setEnabled(false);
+			}
+		}
 
 		MobileAds.initialize(this, new OnInitializationCompleteListener() {
 			@Override

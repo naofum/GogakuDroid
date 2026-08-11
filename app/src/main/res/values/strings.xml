@@ -29,6 +29,7 @@
     <string name="init_error">Initialize error.</string>
     <string name="conn_error">Network connection error.</string>
     <string name="parse_error">XML parse error.</string>
+    <string name="permission_denied">Storage permission denied. Cannot download.</string>
 
     <string-array name="theme">
         <item>Dark</item>
