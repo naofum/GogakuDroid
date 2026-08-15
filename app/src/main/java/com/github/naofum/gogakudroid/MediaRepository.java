@@ -268,7 +268,7 @@ public class MediaRepository {
 
     private String getMimeType(String filename) {
         if (filename.endsWith("mp3")) return "audio/mpeg";
-        if (filename.endsWith("og3")) return "audio/og3";
+        if (filename.endsWith("ogg")) return "audio/ogg";
         if (filename.endsWith("3gp")) return "audio/3gpp";
         if (filename.endsWith("3g2")) return "audio/3gpp2";
         if (filename.endsWith("m4a")) return "audio/x-m4a";

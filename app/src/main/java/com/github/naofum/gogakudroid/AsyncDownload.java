@@ -40,7 +40,6 @@ import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -48,6 +47,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 public class AsyncDownload {
 
@@ -66,11 +66,10 @@ public class AsyncDownload {
 
 	private long duration;
 	private int perc;
-	private int currentkoza;
 
 	private volatile int available = 0;
 	private static final OkHttpClient client = new OkHttpClient();
-	private int currentItemIndex = -1;
+	private volatile int currentItemIndex = -1;
 
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 	private final Handler handler = new Handler(Looper.getMainLooper());
@@ -163,8 +162,6 @@ public class AsyncDownload {
 		isSkip = sharedPref.getBoolean("skip_file", true);
 
 		for (int i = 0; i < koza.length; i++) {
-			currentkoza = 100 * i / koza.length;
-
 			NhkRepository.FetchResult result = nhkRepository.fetchEpisodes(koza[i]);
 			if (!result.isSuccess()) {
 				if ("connection_error".equals(result.error)) {
@@ -241,9 +238,13 @@ public class AsyncDownload {
 
 		available = 0;
 
-		Toast.makeText(owner, lastMessage, Toast.LENGTH_LONG).show();
-
-		viewModel.setStatusMessage(owner.getString(R.string.finished));
+		String message = (result != null && !result.isEmpty()) ? result : lastMessage;
+		if (message != null && !message.isEmpty()) {
+			Toast.makeText(owner, message, Toast.LENGTH_LONG).show();
+			viewModel.setStatusMessage(message);
+		} else {
+			viewModel.setStatusMessage(owner.getString(R.string.finished));
+		}
 		viewModel.setDownloading(false);
 	}
 
@@ -284,14 +285,18 @@ public class AsyncDownload {
 			Request request = new Request.Builder()
 					.url(file)
 					.build();
-			Response response = client.newCall(request).execute();
-			if (!response.isSuccessful()) {
-				Log.d(TAG, String.format("Get m3u8 file error with code: %d", response.code()));
-				return;
-			} else {
+			try (Response response = client.newCall(request).execute()) {
+				if (!response.isSuccessful()) {
+					Log.d(TAG, String.format("Get m3u8 file error with code: %d", response.code()));
+					return;
+				}
+				ResponseBody body = response.body();
+				if (body == null) {
+					Log.e(TAG, "Get m3u8 file error: empty body.");
+					return;
+				}
 				lastUrl = response.request().url().toString();
-				receiveStr = response.body().string();
-				response.body().close();
+				receiveStr = body.string();
 			}
 		} catch (IOException e) {
 			Log.e(TAG, "Get m3u8 file error.");
@@ -314,13 +319,17 @@ public class AsyncDownload {
 			Request request = new Request.Builder()
 					.url(m3u8)
 					.build();
-			Response response = client.newCall(request).execute();
-			if (!response.isSuccessful()) {
-				Log.d(TAG, String.format("Get m3u8 file error with code: %d", response.code()));
-				return;
-			} else {
-				receiveStr = response.body().string();
-				response.body().close();
+			try (Response response = client.newCall(request).execute()) {
+				if (!response.isSuccessful()) {
+					Log.d(TAG, String.format("Get m3u8 file error with code: %d", response.code()));
+					return;
+				}
+				ResponseBody body = response.body();
+				if (body == null) {
+					Log.e(TAG, "Get m3u8 file error: empty body.");
+					return;
+				}
+				receiveStr = body.string();
 			}
 		} catch (IOException e) {
 			Log.e(TAG, "Get m3u8 file error.");
@@ -337,8 +346,11 @@ public class AsyncDownload {
 			String file_name = "";
 			for (int i = 0; i < lines.length; i++) {
 				if (lines[i].startsWith("#EXT-X-KEY")) {
-					url = lines[i].substring(lines[i].indexOf('"') + 1, lines[i].length() - 1);
-					file_name = url.substring(url.lastIndexOf("/") + 1, url.indexOf("?"));
+					url = extractKeyUri(lines[i]);
+					if (url == null) {
+						continue;
+					}
+					file_name = fileNameFromUrl(url);
 					bw.write("#EXT-X-KEY:METHOD=AES-128,URI=\"" + file_name + "\"");
 					Log.d(TAG, "download url: " + url);
 					downloadBinary(url, workdir + "/" + file_name);
@@ -346,11 +358,11 @@ public class AsyncDownload {
 					bw.write(lines[i]);
 				} else {
 					url = m3u8base + lines[i];
-					file_name = url.substring(url.lastIndexOf("/") + 1, url.indexOf("?"));
+					file_name = fileNameFromUrl(url);
 					bw.write(file_name);
 					Log.d(TAG, "download url: " + url);
 					downloadBinary(url, workdir + "/" + file_name);
-					int per = i * 160 / lines.length;
+					int per = 100 * i / lines.length;
 					publishProgress(per, 100);
 				}
 				bw.newLine();
@@ -413,18 +425,23 @@ public class AsyncDownload {
 			Request request = new Request.Builder()
 					.url(url)
 					.build();
-			Response response = client.newCall(request).execute();
-			if (!response.isSuccessful()) {
-				Log.d(TAG, String.format("Download binary file error %s with code: %d", url, response.code()));
-				return false;
-			}
-			try (OutputStream os = new FileOutputStream(file)) {
-				os.write(Objects.requireNonNull(response.body()).bytes());
-				response.body().close();
-			} catch (IOException e) {
-				Log.e(TAG, String.format("Write binary file error. %s", file));
-				e.printStackTrace();
-				return false;
+			try (Response response = client.newCall(request).execute()) {
+				if (!response.isSuccessful()) {
+					Log.d(TAG, String.format("Download binary file error %s with code: %d", url, response.code()));
+					return false;
+				}
+				ResponseBody body = response.body();
+				if (body == null) {
+					Log.e(TAG, String.format("Download binary file error %s: empty body.", url));
+					return false;
+				}
+				try (OutputStream os = new FileOutputStream(file)) {
+					os.write(body.bytes());
+				} catch (IOException e) {
+					Log.e(TAG, String.format("Write binary file error. %s", file));
+					e.printStackTrace();
+					return false;
+				}
 			}
 		} catch (IOException e) {
 			Log.e(TAG, String.format("Download binary file error. %s", url));
@@ -432,6 +449,26 @@ public class AsyncDownload {
 			return false;
 		}
 		return true;
+	}
+
+
+	private String extractKeyUri(String line) {
+		int start = line.indexOf('"');
+		if (start < 0) {
+			return null;
+		}
+		int end = line.indexOf('"', start + 1);
+		if (end < 0) {
+			return null;
+		}
+		return line.substring(start + 1, end);
+	}
+
+	private String fileNameFromUrl(String url) {
+		int q = url.indexOf('?');
+		String path = (q >= 0) ? url.substring(0, q) : url;
+		int slash = path.lastIndexOf('/');
+		return (slash >= 0) ? path.substring(slash + 1) : path;
 	}
 
 
@@ -458,7 +495,7 @@ public class AsyncDownload {
 						long current = date1.getTime() - date2.getTime();
 						if (duration > 0) {
 							perc = (int) (100 * current / duration);
-							publishProgress(perc, currentkoza);
+							publishProgress(perc);
 						}
 					} catch (java.text.ParseException e) {
 						//
@@ -470,7 +507,6 @@ public class AsyncDownload {
 
 		@Override
 		public void processComplete(int exitValue) {
-			((MainActivity) owner).mTask = null;
 			if (exitValue == 0) {
 				lastMessage = owner.getString(R.string.finished);
 				Log.i(TAG, lastMessage);

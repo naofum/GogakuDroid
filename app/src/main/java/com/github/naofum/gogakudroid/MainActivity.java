@@ -243,6 +243,9 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	public void startDownload(String[] koza) {
+		if (mTask != null) {
+			return;
+		}
 		// Switch to download tab
 		viewPager.setCurrentItem(1);
 
