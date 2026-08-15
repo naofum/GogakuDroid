@@ -23,11 +23,71 @@ import java.util.List;
  */
 public class MainViewModel extends ViewModel {
 
-    // --- Download items ---
+    // --- Download items (single source of truth) ---
+    private final Object itemsLock = new Object();
+    private final List<DownloadItem> items = new ArrayList<>();
     private final MutableLiveData<List<DownloadItem>> downloadItems = new MutableLiveData<>(new ArrayList<>());
 
     public LiveData<List<DownloadItem>> getDownloadItems() {
         return downloadItems;
+    }
+
+    public void addDownloadItem(DownloadItem item) {
+        synchronized (itemsLock) {
+            items.add(item);
+            downloadItems.postValue(new ArrayList<>(items));
+        }
+    }
+
+    public void updateDownloadItem(int index, int progress, DownloadItem.Status status) {
+        synchronized (itemsLock) {
+            if (index < 0 || index >= items.size()) {
+                return;
+            }
+            DownloadItem item = items.get(index);
+            DownloadItem.Status current = item.getStatus();
+            if (current == DownloadItem.Status.COMPLETED
+                    || current == DownloadItem.Status.FAILED
+                    || current == DownloadItem.Status.SKIPPED) {
+                return;
+            }
+            item.setProgress(progress);
+            item.setStatus(status);
+            downloadItems.postValue(new ArrayList<>(items));
+        }
+    }
+
+    public void setDownloadItemUri(int index, Uri uri) {
+        synchronized (itemsLock) {
+            if (index < 0 || index >= items.size()) {
+                return;
+            }
+            items.get(index).setContentUri(uri);
+            downloadItems.postValue(new ArrayList<>(items));
+        }
+    }
+
+    public void removeDownloadItem(int index) {
+        synchronized (itemsLock) {
+            if (index < 0 || index >= items.size()) {
+                return;
+            }
+            items.remove(index);
+            downloadItems.postValue(new ArrayList<>(items));
+        }
+    }
+
+    public void clearDownloadItems() {
+        synchronized (itemsLock) {
+            items.clear();
+            downloadItems.postValue(new ArrayList<>(items));
+        }
+    }
+
+    public int getDownloadItemCount() {
+        synchronized (itemsLock) {
+            return items.size();
+        }
     }
 
     // --- Status message (shown on CoursesFragment) ---
@@ -59,80 +119,5 @@ public class MainViewModel extends ViewModel {
 
     public void postDownloading(boolean downloading) {
         isDownloading.postValue(downloading);
-    }
-
-    // --- Events for download item updates ---
-
-    /**
-     * Event to add a new download item.
-     */
-    public static class AddItemEvent {
-        public final int index;
-        public final DownloadItem item;
-        public final DownloadItem.Status initialStatus;
-
-        public AddItemEvent(int index, DownloadItem item, DownloadItem.Status initialStatus) {
-            this.index = index;
-            this.item = item;
-            this.initialStatus = initialStatus;
-        }
-    }
-
-    private final MutableLiveData<AddItemEvent> addItemEvent = new MutableLiveData<>();
-
-    public LiveData<AddItemEvent> getAddItemEvent() {
-        return addItemEvent;
-    }
-
-    public void postAddItem(int index, DownloadItem item, DownloadItem.Status initialStatus) {
-        addItemEvent.postValue(new AddItemEvent(index, item, initialStatus));
-    }
-
-    /**
-     * Event to update download item progress/status.
-     */
-    public static class UpdateItemEvent {
-        public final int index;
-        public final int progress;
-        public final DownloadItem.Status status;
-
-        public UpdateItemEvent(int index, int progress, DownloadItem.Status status) {
-            this.index = index;
-            this.progress = progress;
-            this.status = status;
-        }
-    }
-
-    private final MutableLiveData<UpdateItemEvent> updateItemEvent = new MutableLiveData<>();
-
-    public LiveData<UpdateItemEvent> getUpdateItemEvent() {
-        return updateItemEvent;
-    }
-
-    public void postUpdateItem(int index, int progress, DownloadItem.Status status) {
-        updateItemEvent.postValue(new UpdateItemEvent(index, progress, status));
-    }
-
-    /**
-     * Event to set item URI after media is stored.
-     */
-    public static class SetItemUriEvent {
-        public final int index;
-        public final Uri uri;
-
-        public SetItemUriEvent(int index, Uri uri) {
-            this.index = index;
-            this.uri = uri;
-        }
-    }
-
-    private final MutableLiveData<SetItemUriEvent> setItemUriEvent = new MutableLiveData<>();
-
-    public LiveData<SetItemUriEvent> getSetItemUriEvent() {
-        return setItemUriEvent;
-    }
-
-    public void postSetItemUri(int index, Uri uri) {
-        setItemUriEvent.postValue(new SetItemUriEvent(index, uri));
     }
 }

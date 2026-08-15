@@ -1,5 +1,10 @@
 apply plugin: 'com.android.application'
 
+// Network-dependent tests are opt-in so that CI stays stable.
+//   Unit tests only:  ./gradlew testDebugUnitTest
+//   Include network:  ./gradlew testDebugUnitTest -PnetworkTests
+def runNetworkTests = project.hasProperty('networkTests')
+
 android {
     compileSdk 37
 
@@ -24,6 +29,13 @@ android {
     testOptions {
         unitTests.includeAndroidResources = true
         unitTests.returnDefaultValues = true
+        unitTests.all {
+            if (!runNetworkTests) {
+                useJUnit {
+                    excludeCategories 'com.github.naofum.gogakudroid.NetworkTest'
+                }
+            }
+        }
     }
 
     namespace 'com.github.naofum.gogakudroid'

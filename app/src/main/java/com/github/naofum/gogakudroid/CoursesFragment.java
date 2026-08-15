@@ -112,9 +112,6 @@ public class CoursesFragment extends Fragment {
     public void savePreferences() {
         SharedPreferences pref = requireActivity().getSharedPreferences("target_class", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = pref.edit();
-        for (String key : MainActivity.ENGLISH.keySet()) {
-            editor.putInt(key, 0);
-        }
         for (String key : MainActivity.MULTILINGUAL.keySet()) {
             editor.putInt(key, 0);
         }

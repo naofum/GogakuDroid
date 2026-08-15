@@ -9,14 +9,10 @@
 package com.github.naofum.gogakudroid;
 
 import android.util.Log;
-import android.util.Xml;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.xmlpull.v1.XmlPullParser;
 
-import java.io.IOException;
-import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,15 +21,13 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 /**
- * Repository for fetching program data from NHK APIs.
- * Handles HTTP communication and XML/JSON parsing.
+ * Repository for fetching program data from the NHK radio on-demand API.
+ * Handles HTTP communication and JSON parsing.
  */
 public class NhkRepository {
 
     private static final String TAG = NhkRepository.class.getSimpleName();
-    private static final String XML_BASE_URL = "https://www.nhk.or.jp/gogaku/st/xml/";
     private static final String JSON_BASE_URL = "https://www.nhk.or.jp/radio-api/app/v1/web/ondemand/series";
-    private static final String STREAM_PREFIX = "https://www.nhk.or.jp/radio-api/app/v1/web/ondemand/series";
 
     private final OkHttpClient client;
 
@@ -84,16 +78,10 @@ public class NhkRepository {
     }
 
     /**
-     * Fetch episodes for the given course ID.
-     * Determines XML or JSON API based on whether the ID is in the legacy ENGLISH map.
+     * Fetch episodes for the given course site ID.
      */
-    public FetchResult fetchEpisodes(String koza, boolean isLegacy) {
-        String url;
-        if (isLegacy) {
-            url = XML_BASE_URL + koza + "/listdataflv.xml";
-        } else {
-            url = JSON_BASE_URL + "?site_id=" + koza + "&corner_site_id=01";
-        }
+    public FetchResult fetchEpisodes(String koza) {
+        String url = JSON_BASE_URL + "?site_id=" + koza + "&corner_site_id=01";
         return fetchFromUrl(url);
     }
 
@@ -119,35 +107,12 @@ public class NhkRepository {
 
         Log.d(TAG, "Response: " + responseBody);
 
-        if (responseBody.charAt(0) == '<') {
-            return parseXml(responseBody);
-        } else {
-            return parseJson(responseBody);
-        }
-    }
-
-    private FetchResult parseXml(String xml) {
-        List<Episode> episodes = new ArrayList<>();
-        try {
-            XmlPullParser parser = Xml.newPullParser();
-            parser.setInput(new StringReader(xml));
-            int eventType = parser.getEventType();
-            while (eventType != XmlPullParser.END_DOCUMENT) {
-                if (eventType == XmlPullParser.START_TAG && parser.getName().equals("music")) {
-                    String kouza = parser.getAttributeValue(null, "kouza");
-                    String hdate = parser.getAttributeValue(null, "hdate");
-                    String file = parser.getAttributeValue(null, "file");
-                    String nendo = parser.getAttributeValue(null, "nendo");
-                    String streamUrl = STREAM_PREFIX + file + "/index.m3u8";
-                    episodes.add(new Episode(kouza, hdate, streamUrl, nendo));
-                }
-                eventType = parser.next();
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "XML parse error", e);
+        if (responseBody == null || responseBody.trim().isEmpty()) {
+            Log.e(TAG, "Empty response body");
             return FetchResult.failure("parse_error");
         }
-        return FetchResult.success(episodes);
+
+        return parseJson(responseBody);
     }
 
     private FetchResult parseJson(String json) {

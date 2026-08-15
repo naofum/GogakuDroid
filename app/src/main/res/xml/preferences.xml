@@ -19,7 +19,7 @@
         android:summary="@string/type_desc"
         android:title="@string/type" />
     <ListPreference
-        android:defaultValue="Theme.Dark"
+        android:defaultValue="AppBaseTheme"
         android:entries="@array/theme"
         android:entryValues="@array/theme_value"
         android:key="theme"

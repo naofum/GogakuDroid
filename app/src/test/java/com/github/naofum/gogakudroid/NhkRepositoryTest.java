@@ -17,7 +17,7 @@ import okhttp3.mockwebserver.MockWebServer;
 
 /**
  * Unit tests for NhkRepository.
- * Tests XML/JSON parsing and network error handling using MockWebServer.
+ * Tests JSON parsing and network error handling using MockWebServer.
  */
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 30)
@@ -37,85 +37,6 @@ public class NhkRepositoryTest {
     @After
     public void tearDown() throws Exception {
         mockWebServer.shutdown();
-    }
-
-    // --- XML Parsing Tests ---
-
-    @Test
-    public void fetchFromUrl_xml_parsesMultipleEpisodes() {
-        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-                + "<musicdata>\n"
-                + "  <music kouza=\"基礎英語\" hdate=\"2024_0805_0600\" "
-                + "file=\"/path/to/stream\" nendo=\"2024\"/>\n"
-                + "  <music kouza=\"基礎英語\" hdate=\"2024_0806_0600\" "
-                + "file=\"/path/to/stream2\" nendo=\"2024\"/>\n"
-                + "</musicdata>";
-
-        mockWebServer.enqueue(new MockResponse().setBody(xml));
-        String url = mockWebServer.url("/test.xml").toString();
-
-        NhkRepository.FetchResult result = repository.fetchFromUrl(url);
-
-        assertTrue(result.isSuccess());
-        assertNotNull(result.episodes);
-        assertEquals(2, result.episodes.size());
-
-        NhkRepository.Episode ep1 = result.episodes.get(0);
-        assertEquals("基礎英語", ep1.kouza);
-        assertEquals("2024_0805_0600", ep1.hdate);
-        assertEquals("2024", ep1.nendo);
-        assertTrue(ep1.streamUrl.contains("/path/to/stream"));
-    }
-
-    @Test
-    public void fetchFromUrl_xml_emptyDocument() {
-        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<musicdata></musicdata>";
-
-        mockWebServer.enqueue(new MockResponse().setBody(xml));
-        String url = mockWebServer.url("/empty.xml").toString();
-
-        NhkRepository.FetchResult result = repository.fetchFromUrl(url);
-
-        assertTrue(result.isSuccess());
-        assertNotNull(result.episodes);
-        assertEquals(0, result.episodes.size());
-    }
-
-    @Test
-    public void fetchFromUrl_xml_singleEpisode() {
-        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-                + "<musicdata>\n"
-                + "  <music kouza=\"ラジオ英会話\" hdate=\"6_05\" "
-                + "file=\"/radio/stream\" nendo=\"2024\"/>\n"
-                + "</musicdata>";
-
-        mockWebServer.enqueue(new MockResponse().setBody(xml));
-        String url = mockWebServer.url("/single.xml").toString();
-
-        NhkRepository.FetchResult result = repository.fetchFromUrl(url);
-
-        assertTrue(result.isSuccess());
-        assertEquals(1, result.episodes.size());
-        assertEquals("ラジオ英会話", result.episodes.get(0).kouza);
-        assertEquals("6_05", result.episodes.get(0).hdate);
-    }
-
-    @Test
-    public void fetchFromUrl_xml_streamUrlContainsPrefix() {
-        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-                + "<musicdata>\n"
-                + "  <music kouza=\"test\" hdate=\"date\" "
-                + "file=\"/mypath\" nendo=\"2024\"/>\n"
-                + "</musicdata>";
-
-        mockWebServer.enqueue(new MockResponse().setBody(xml));
-        String url = mockWebServer.url("/prefix.xml").toString();
-
-        NhkRepository.FetchResult result = repository.fetchFromUrl(url);
-
-        assertTrue(result.isSuccess());
-        NhkRepository.Episode ep = result.episodes.get(0);
-        assertTrue(ep.streamUrl.endsWith("/mypath/index.m3u8"));
     }
 
     // --- JSON Parsing Tests ---
@@ -233,11 +154,11 @@ public class NhkRepositoryTest {
     // --- Parse Error Tests ---
 
     @Test
-    public void fetchFromUrl_malformedXml_returnsParseError() {
-        String badXml = "<musicdata><music kouza=\"test\"";
+    public void fetchFromUrl_malformedJson_returnsParseError() {
+        String badJson = "{\"title\": broken}";
 
-        mockWebServer.enqueue(new MockResponse().setBody(badXml));
-        String url = mockWebServer.url("/bad.xml").toString();
+        mockWebServer.enqueue(new MockResponse().setBody(badJson));
+        String url = mockWebServer.url("/bad.json").toString();
 
         NhkRepository.FetchResult result = repository.fetchFromUrl(url);
 
@@ -246,11 +167,20 @@ public class NhkRepositoryTest {
     }
 
     @Test
-    public void fetchFromUrl_malformedJson_returnsParseError() {
-        String badJson = "{\"title\": broken}";
+    public void fetchFromUrl_emptyBody_returnsParseError() {
+        mockWebServer.enqueue(new MockResponse().setResponseCode(200).setBody(""));
+        String url = mockWebServer.url("/empty").toString();
 
-        mockWebServer.enqueue(new MockResponse().setBody(badJson));
-        String url = mockWebServer.url("/bad.json").toString();
+        NhkRepository.FetchResult result = repository.fetchFromUrl(url);
+
+        assertFalse(result.isSuccess());
+        assertEquals("parse_error", result.error);
+    }
+
+    @Test
+    public void fetchFromUrl_whitespaceBody_returnsParseError() {
+        mockWebServer.enqueue(new MockResponse().setResponseCode(200).setBody("   \n  "));
+        String url = mockWebServer.url("/whitespace").toString();
 
         NhkRepository.FetchResult result = repository.fetchFromUrl(url);
 

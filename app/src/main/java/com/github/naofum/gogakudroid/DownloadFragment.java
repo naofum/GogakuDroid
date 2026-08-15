@@ -9,18 +9,21 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class DownloadFragment extends Fragment {
 
-    private ArrayList<DownloadItem> downloadItems = new ArrayList<>();
+    private List<DownloadItem> items = new ArrayList<>();
     private DownloadAdapter adapter;
     private RecyclerView recyclerView;
     private TextView emptyText;
+    private MainViewModel viewModel;
 
     @Nullable
     @Override
@@ -28,8 +31,9 @@ public class DownloadFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_download, container, false);
         recyclerView = view.findViewById(R.id.downloadRecyclerView);
         emptyText = view.findViewById(R.id.emptyText);
+        viewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
 
-        adapter = new DownloadAdapter(downloadItems, this::getStatusString);
+        adapter = new DownloadAdapter(this::getStatusString);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireActivity()));
         recyclerView.setAdapter(adapter);
 
@@ -43,73 +47,36 @@ public class DownloadFragment extends Fragment {
             @Override
             public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
                 int position = viewHolder.getAdapterPosition();
-                DownloadItem item = downloadItems.get(position);
-                removeDownloadRecord(item.getTitle());
-                adapter.removeItem(position);
-                updateEmptyState();
+                if (position >= 0 && position < items.size()) {
+                    removeDownloadRecord(items.get(position).getTitle());
+                    viewModel.removeDownloadItem(position);
+                }
             }
         });
         itemTouchHelper.attachToRecyclerView(recyclerView);
 
         view.findViewById(R.id.clearButton).setOnClickListener(v -> clearItems());
 
+        viewModel.getDownloadItems().observe(getViewLifecycleOwner(), list -> {
+            items = list;
+            adapter.setItems(list);
+            updateEmptyState();
+        });
+
         updateEmptyState();
         return view;
     }
 
     public void clearItems() {
-        for (DownloadItem item : downloadItems) {
+        for (DownloadItem item : items) {
             removeDownloadRecord(item.getTitle());
         }
-        downloadItems.clear();
-        if (adapter != null) {
-            adapter.notifyDataSetChanged();
-        }
-        updateEmptyState();
-    }
-
-    public void addItem(DownloadItem item) {
-        downloadItems.add(item);
-        if (adapter != null) {
-            adapter.notifyItemInserted(downloadItems.size() - 1);
-        }
-        updateEmptyState();
-    }
-
-    public void updateItem(int index, int progress, DownloadItem.Status status) {
-        if (index >= 0 && index < downloadItems.size()) {
-            DownloadItem item = downloadItems.get(index);
-            // Don't overwrite a terminal status with a non-terminal one
-            DownloadItem.Status current = item.getStatus();
-            if (current == DownloadItem.Status.COMPLETED
-                    || current == DownloadItem.Status.FAILED
-                    || current == DownloadItem.Status.SKIPPED) {
-                return;
-            }
-            item.setProgress(progress);
-            item.setStatus(status);
-            if (adapter != null) {
-                adapter.notifyItemChanged(index);
-            }
-        }
-    }
-
-    public int getItemCount() {
-        return downloadItems.size();
-    }
-
-    public void setItemUri(int index, android.net.Uri uri) {
-        if (index >= 0 && index < downloadItems.size()) {
-            downloadItems.get(index).setContentUri(uri);
-            if (adapter != null) {
-                adapter.notifyItemChanged(index);
-            }
-        }
+        viewModel.clearDownloadItems();
     }
 
     private void updateEmptyState() {
         if (emptyText == null) return;
-        if (downloadItems.isEmpty()) {
+        if (items.isEmpty()) {
             emptyText.setVisibility(View.VISIBLE);
             recyclerView.setVisibility(View.GONE);
         } else {

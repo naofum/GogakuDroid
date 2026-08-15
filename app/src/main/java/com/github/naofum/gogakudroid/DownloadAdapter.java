@@ -13,19 +13,28 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class DownloadAdapter extends RecyclerView.Adapter<DownloadAdapter.ViewHolder> {
 
-    private final ArrayList<DownloadItem> items;
+    private List<DownloadItem> items = new ArrayList<>();
     private final StatusTextProvider statusTextProvider;
 
     public interface StatusTextProvider {
         String getStatusText(DownloadItem.Status status);
     }
 
-    public DownloadAdapter(ArrayList<DownloadItem> items, StatusTextProvider provider) {
-        this.items = items;
+    public DownloadAdapter(StatusTextProvider provider) {
         this.statusTextProvider = provider;
+    }
+
+    public void setItems(List<DownloadItem> items) {
+        this.items = items;
+        notifyDataSetChanged();
+    }
+
+    public DownloadItem getItem(int position) {
+        return items.get(position);
     }
 
     @NonNull
@@ -66,13 +75,6 @@ public class DownloadAdapter extends RecyclerView.Adapter<DownloadAdapter.ViewHo
     @Override
     public int getItemCount() {
         return items.size();
-    }
-
-    public void removeItem(int position) {
-        if (position >= 0 && position < items.size()) {
-            items.remove(position);
-            notifyItemRemoved(position);
-        }
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {

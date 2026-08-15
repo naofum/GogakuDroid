@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -60,7 +61,6 @@ import com.google.android.material.tabs.TabLayoutMediator;
 public class MainActivity extends AppCompatActivity {
 
 	private static final String TAG = MainActivity.class.getSimpleName();
-	protected static Map<String, String> ENGLISH = new LinkedHashMap<String, String>();
 	protected AsyncDownload mTask;
 
 	private AdView adView;
@@ -70,26 +70,6 @@ public class MainActivity extends AppCompatActivity {
 	private DownloadFragment downloadFragment;
 	private MainViewModel viewModel;
 
-	static {
-		ENGLISH.put("english/basic0", "小学生の基礎英語");
-		ENGLISH.put("english/basic1", "中学生の基礎英語_レベル1");
-		ENGLISH.put("english/basic2", "中学生の基礎英語_レベル2");
-		ENGLISH.put("english/basic3", "中高生の基礎英語_in_English");
-		ENGLISH.put("english/kaiwa", "ラジオ英会話");
-		ENGLISH.put("english/timetrial", "英会話タイムトライアル");
-		ENGLISH.put("english/business1", "ラジオビジネス英語");
-		ENGLISH.put("english/enjoy", "エンジョイ・シンプル・イングリッシュ");
-		ENGLISH.put("italian/kouza", "まいにちイタリア語【初級編】");
-		ENGLISH.put("italian/kouza2", "まいにちイタリア語【応用編】");
-		ENGLISH.put("german/kouza", "まいにちドイツ語【初級編】");
-		ENGLISH.put("german/kouza2", "まいにちドイツ語【応用編】");
-		ENGLISH.put("french/kouza", "まいにちフランス語【初級編】");
-		ENGLISH.put("french/kouza2", "まいにちフランス語【応用編】");
-		ENGLISH.put("spanish/kouza", "まいにちスペイン語【初級編】");
-		ENGLISH.put("spanish/kouza2", "まいにちスペイン語【応用編】");
-		ENGLISH.put("russian/kouza", "まいにちロシア語【初級編】");
-		ENGLISH.put("russian/kouza2", "まいにちロシア語【応用編】");
-	}
 	protected static Map<String, String> MULTILINGUAL = new LinkedHashMap<String, String>();
 	static {
 		MULTILINGUAL.put("GGQY3M1929", "小学生の基礎英語");
@@ -118,7 +98,7 @@ public class MainActivity extends AppCompatActivity {
 	@Override
 	protected void onStop() {
 		super.onStop();
-		if (mTask != null) {
+		if (mTask != null && isFinishing()) {
 			mTask.cancel(true);
 		}
 	}
@@ -245,29 +225,6 @@ public class MainActivity extends AppCompatActivity {
 			}
 		});
 
-		viewModel.getAddItemEvent().observe(this, event -> {
-			if (event != null && downloadFragment != null) {
-				downloadFragment.addItem(event.item);
-				if (event.initialStatus == DownloadItem.Status.SKIPPED) {
-					downloadFragment.updateItem(event.index, 100, DownloadItem.Status.SKIPPED);
-				} else {
-					downloadFragment.updateItem(event.index, 0, event.initialStatus);
-				}
-			}
-		});
-
-		viewModel.getUpdateItemEvent().observe(this, event -> {
-			if (event != null && downloadFragment != null) {
-				downloadFragment.updateItem(event.index, event.progress, event.status);
-			}
-		});
-
-		viewModel.getSetItemUriEvent().observe(this, event -> {
-			if (event != null && downloadFragment != null) {
-				downloadFragment.setItemUri(event.index, event.uri);
-			}
-		});
-
 		viewModel.getIsDownloading().observe(this, downloading -> {
 			if (coursesFragment != null) {
 				coursesFragment.setButtonEnabled(!downloading);
@@ -292,10 +249,6 @@ public class MainActivity extends AppCompatActivity {
 		mTask = new AsyncDownload(this);
 		mTask.owner = this;
 		mTask.execute(koza);
-	}
-
-	public DownloadFragment getDownloadFragment() {
-		return downloadFragment;
 	}
 
 	public CoursesFragment getCoursesFragment() {
@@ -340,7 +293,7 @@ public class MainActivity extends AppCompatActivity {
 		InputStream fis;
 		try {
 			fis = getAssets().open(filename);
-			BufferedReader reader = new BufferedReader(new InputStreamReader(fis, "utf-8"));
+			BufferedReader reader = new BufferedReader(new InputStreamReader(fis, StandardCharsets.UTF_8));
 			String line;
 			while ((line = reader.readLine()) != null) {
 				builder.append(line);
@@ -351,7 +304,7 @@ public class MainActivity extends AppCompatActivity {
 			e.printStackTrace();
 		}
 
-		textview1.setText(Html.fromHtml(text));
+		textview1.setText(Html.fromHtml(text, Html.FROM_HTML_MODE_LEGACY));
 		textview1.setMovementMethod(LinkMovementMethod.getInstance());
 
 		Button dialogButton = (Button) dialog.findViewById(R.id.button1);

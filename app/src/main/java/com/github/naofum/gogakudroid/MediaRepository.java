@@ -153,6 +153,7 @@ public class MediaRepository {
         Log.d("GogakuDroid", "Search: " + inputFile);
 
         // Debug: dump all accessible audio media information
+/*
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             Uri audioUri = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL);
             String[] projection = {
@@ -186,6 +187,7 @@ public class MediaRepository {
                 Log.e("GogakuDroid", "Failed to query audio media", e);
             }
         }
+*/
 
         SharedPreferences pref = context.getSharedPreferences("downloaded_files", Context.MODE_PRIVATE);
         if (!pref.contains(inputFile)) {

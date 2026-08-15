@@ -59,7 +59,7 @@ public class AsyncDownload {
 	public boolean isSkip;
 	public boolean isWakeLock;
 	private String receiveStr;
-	protected FfmpegController fc;
+	protected volatile FfmpegController fc;
 
 	private static final String TAG = AsyncDownload.class.getSimpleName();
 	private PowerManager.WakeLock mWakeLock;
@@ -89,13 +89,27 @@ public class AsyncDownload {
 	public void execute(String[] koza) {
 		onPreExecute();
 		executor.execute(() -> {
-			String result = doInBackground(koza);
-			handler.post(() -> onPostExecute(result));
+			String result = null;
+			try {
+				result = doInBackground(koza);
+			} catch (Exception e) {
+				Log.e(TAG, "doInBackground error", e);
+				lastMessage = owner.getString(R.string.failed);
+				result = lastMessage;
+			} finally {
+				final String finalResult = result;
+				handler.post(() -> onPostExecute(finalResult));
+			}
 		});
 	}
 
 	public void cancel(boolean mayInterruptIfRunning) {
 		cancelled.set(true);
+		FfmpegController controller = fc;
+		if (controller != null) {
+			controller.cancel();
+		}
+		client.dispatcher().cancelAll();
 		executor.shutdownNow();
 		handler.post(this::onCancelled);
 	}
@@ -106,7 +120,7 @@ public class AsyncDownload {
 
 	private void publishProgress(Integer... values) {
 		if (currentItemIndex >= 0) {
-			viewModel.postUpdateItem(currentItemIndex, values[0], DownloadItem.Status.DOWNLOADING);
+			viewModel.updateDownloadItem(currentItemIndex, values[0], DownloadItem.Status.DOWNLOADING);
 		}
 	}
 
@@ -127,12 +141,7 @@ public class AsyncDownload {
 		lastMessage = "";
 
 		// Start indexing after existing items in the download list
-		DownloadFragment df = ((MainActivity) owner).getDownloadFragment();
-		if (df != null) {
-			currentItemIndex = df.getItemCount() - 1;
-		} else {
-			currentItemIndex = -1;
-		}
+		currentItemIndex = viewModel.getDownloadItemCount() - 1;
 
 		viewModel.postDownloading(true);
 		viewModel.postStatusMessage(owner.getString(R.string.started));
@@ -155,9 +164,8 @@ public class AsyncDownload {
 
 		for (int i = 0; i < koza.length; i++) {
 			currentkoza = 100 * i / koza.length;
-			boolean isLegacy = MainActivity.ENGLISH.containsKey(koza[i]);
 
-			NhkRepository.FetchResult result = nhkRepository.fetchEpisodes(koza[i], isLegacy);
+			NhkRepository.FetchResult result = nhkRepository.fetchEpisodes(koza[i]);
 			if (!result.isSuccess()) {
 				if ("connection_error".equals(result.error)) {
 					return owner.getString(R.string.conn_error);
@@ -173,16 +181,17 @@ public class AsyncDownload {
 				final String itemTitle = episode.kouza + "_" + episode.hdate;
 				currentItemIndex++;
 				final int idx = currentItemIndex;
-				final boolean willSkip = isSkip && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-						&& mediaRepository.isMediaExist(episode.kouza + "_" + episode.hdate + "." + type);
-				viewModel.postAddItem(idx, new DownloadItem(itemTitle),
-						willSkip ? DownloadItem.Status.SKIPPED : DownloadItem.Status.DOWNLOADING);
-
-				if (isLegacy) {
-					download(koza[i], episode.kouza, episode.hdate, episode.streamUrl, episode.nendo, type);
+				final boolean willSkip = shouldSkip(episode.kouza, episode.hdate, type);
+				DownloadItem item = new DownloadItem(itemTitle);
+				if (willSkip) {
+					item.setProgress(100);
+					item.setStatus(DownloadItem.Status.SKIPPED);
 				} else {
-					download2(koza[i], episode.kouza, episode.hdate, episode.streamUrl, episode.nendo, type);
+					item.setStatus(DownloadItem.Status.DOWNLOADING);
 				}
+				viewModel.addDownloadItem(item);
+
+				download2(koza[i], episode.kouza, episode.hdate, episode.streamUrl, episode.nendo, type, willSkip);
 
 				final String msg = lastMessage;
 				if (!willSkip) {
@@ -192,7 +201,7 @@ public class AsyncDownload {
 					} else if (msg != null && msg.equals(owner.getString(R.string.failed))) {
 						st = DownloadItem.Status.FAILED;
 					}
-					viewModel.postUpdateItem(idx, 100, st);
+					viewModel.updateDownloadItem(idx, 100, st);
 				}
 				if (isCancelled()) {
 					return owner.getString(R.string.cancelled);
@@ -205,16 +214,29 @@ public class AsyncDownload {
 
 	private void onProgressUpdate(Integer... values) {
 		if (currentItemIndex >= 0) {
-			viewModel.postUpdateItem(currentItemIndex, values[0], DownloadItem.Status.DOWNLOADING);
+			viewModel.updateDownloadItem(currentItemIndex, values[0], DownloadItem.Status.DOWNLOADING);
 		}
 	}
 
 	private void onCancelled() {
+		releaseWakeLock();
+		((MainActivity) owner).mTask = null;
+		available = 0;
+		viewModel.setStatusMessage(owner.getString(R.string.cancelled));
+		viewModel.setDownloading(false);
+	}
+
+	private void releaseWakeLock() {
+		if (mWakeLock != null && mWakeLock.isHeld()) {
+			mWakeLock.release();
+		}
 	}
 
 	private void onPostExecute(String result) {
-		if (mWakeLock != null && mWakeLock.isHeld())
-			mWakeLock.release();
+		if (isCancelled()) {
+			return;
+		}
+		releaseWakeLock();
 		((MainActivity) owner).mTask = null;
 
 		available = 0;
@@ -226,32 +248,17 @@ public class AsyncDownload {
 	}
 
 
-	protected void download(String koza, String kouza, String hdate, String file, String nendo, String type) {
-		Log.d(TAG, "download: " + file);
-		Clip mediaIn = new Clip(file);
-		Clip mediaOut = new Clip(MainActivity.FILES_DIR.getPath() + "/" + kouza + "/" + kouza + "_" + hdate + "." + type);
-		File dir = new File(MainActivity.FILES_DIR.getPath() + "/" + kouza);
-		dir.mkdirs();
+	private boolean shouldSkip(String kouza, String hdate, String type) {
+		if (!isSkip) {
+			return false;
+		}
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-			if (isSkip && mediaRepository.isMediaExist(kouza + "_" + hdate + "." + type)) {
-				lastMessage = owner.getString(R.string.skipped);
-				return;
-			}
-		} else {
-			if (isSkip && mediaRepository.isFileExist(kouza + "_" + hdate + "." + type)) {
-				lastMessage = owner.getString(R.string.skipped);
-				return;
-			}
+			return mediaRepository.isMediaExist(kouza + "_" + hdate + "." + type);
 		}
-		try {
-			convertMedia(mediaIn, mediaOut, type, kouza + "_" + hdate, nendo);
-		} catch (Exception e) {
-			Log.e(TAG, e.getMessage());
-		}
+		return mediaRepository.isFileExist(kouza + "/" + kouza + "_" + hdate + "." + type);
 	}
 
-
-	protected void download2(String koza, String kouza, String hdate, String file, String nendo, String type) {
+	protected void download2(String koza, String kouza, String hdate, String file, String nendo, String type, boolean willSkip) {
 		Log.d(TAG, "download2: " + file);
 
 		while (available == 1) {
@@ -268,16 +275,9 @@ public class AsyncDownload {
 		String m3u8 = "";
 		File workdir = new File(MainActivity.FILES_DIR.getPath());
 
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-			if (isSkip && mediaRepository.isMediaExist(kouza + "_" + hdate + "." + type)) {
-				lastMessage = owner.getString(R.string.skipped);
-				return;
-			}
-		} else {
-			if (isSkip && mediaRepository.isFileExist(kouza + "/" + kouza + "_" + hdate + "." + type)) {
-				lastMessage = owner.getString(R.string.skipped);
-				return;
-			}
+		if (willSkip) {
+			lastMessage = owner.getString(R.string.skipped);
+			return;
 		}
 
 		try {
@@ -375,6 +375,7 @@ public class AsyncDownload {
 			Log.e(TAG, "Convert error.");
 			e.printStackTrace();
 			Log.e(TAG, e.getMessage());
+			lastMessage = owner.getString(R.string.failed);
 		}
 
 		String[] files = workdir.list();
@@ -455,8 +456,10 @@ public class AsyncDownload {
 						Date date1 = sdf.parse(time);
 						Date date2 = sdf.parse("00:00:00");
 						long current = date1.getTime() - date2.getTime();
-						perc = (int) (100 * current / duration);
-						publishProgress(perc, currentkoza);
+						if (duration > 0) {
+							perc = (int) (100 * current / duration);
+							publishProgress(perc, currentkoza);
+						}
 					} catch (java.text.ParseException e) {
 						//
 					}
@@ -502,7 +505,7 @@ public class AsyncDownload {
 								resultUri = mediaRepository.moveFile(subdir.getPath() + "/", sub_files[j], target_dir.getPath() + "/" + files[i] + "/");
 							}
 							if (resultUri != null) {
-								viewModel.postSetItemUri(currentItemIndex, resultUri);
+								viewModel.setDownloadItemUri(currentItemIndex, resultUri);
 							}
 						}
 					}

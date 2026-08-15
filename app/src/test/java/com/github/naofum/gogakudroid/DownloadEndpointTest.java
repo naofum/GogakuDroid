@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
@@ -20,40 +21,17 @@ import okhttp3.Response;
  * Integration test: verifies that all configured program download URLs are reachable.
  * Requires network access. Tests may fail if NHK changes their API.
  *
- * Run with: ./gradlew testDebugUnitTest --tests "*.DownloadEndpointTest"
+ * Run with: ./gradlew testDebugUnitTest -PnetworkTests
  */
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 30)
+@Category(NetworkTest.class)
 public class DownloadEndpointTest {
 
-    private static final String XML_BASE_URL = "https://www.nhk.or.jp/gogaku/st/xml/";
     private static final String JSON_BASE_URL = "https://www.nhk.or.jp/radio-api/app/v1/web/ondemand/series";
 
     private OkHttpClient client;
     private NhkRepository repository;
-
-    // Legacy XML courses
-    private static final Map<String, String> ENGLISH = new LinkedHashMap<>();
-    static {
-        ENGLISH.put("english/basic0", "小学生の基礎英語");
-        ENGLISH.put("english/basic1", "中学生の基礎英語_レベル1");
-        ENGLISH.put("english/basic2", "中学生の基礎英語_レベル2");
-        ENGLISH.put("english/basic3", "中高生の基礎英語_in_English");
-        ENGLISH.put("english/kaiwa", "ラジオ英会話");
-        ENGLISH.put("english/timetrial", "英会話タイムトライアル");
-        ENGLISH.put("english/business1", "ラジオビジネス英語");
-        ENGLISH.put("english/enjoy", "エンジョイ・シンプル・イングリッシュ");
-        ENGLISH.put("italian/kouza", "まいにちイタリア語【初級編】");
-        ENGLISH.put("italian/kouza2", "まいにちイタリア語【応用編】");
-        ENGLISH.put("german/kouza", "まいにちドイツ語【初級編】");
-        ENGLISH.put("german/kouza2", "まいにちドイツ語【応用編】");
-        ENGLISH.put("french/kouza", "まいにちフランス語【初級編】");
-        ENGLISH.put("french/kouza2", "まいにちフランス語【応用編】");
-        ENGLISH.put("spanish/kouza", "まいにちスペイン語【初級編】");
-        ENGLISH.put("spanish/kouza2", "まいにちスペイン語【応用編】");
-        ENGLISH.put("russian/kouza", "まいにちロシア語【初級編】");
-        ENGLISH.put("russian/kouza2", "まいにちロシア語【応用編】");
-    }
 
     // JSON API courses
     private static final Map<String, String> MULTILINGUAL = new LinkedHashMap<>();
@@ -83,36 +61,6 @@ public class DownloadEndpointTest {
     public void setUp() {
         client = new OkHttpClient();
         repository = new NhkRepository(client);
-    }
-
-    // --- Legacy XML endpoint tests ---
-
-    @Test
-    public void allLegacyXmlEndpoints_areReachable() {
-        StringBuilder failures = new StringBuilder();
-
-        for (Map.Entry<String, String> entry : ENGLISH.entrySet()) {
-            String koza = entry.getKey();
-            String name = entry.getValue();
-            String url = XML_BASE_URL + koza + "/listdataflv.xml";
-
-            try {
-                Request request = new Request.Builder().url(url).build();
-                Response response = client.newCall(request).execute();
-                int code = response.code();
-                response.close();
-
-                if (code != 200) {
-                    failures.append(String.format("  [%d] %s (%s)\n", code, name, url));
-                }
-            } catch (IOException e) {
-                failures.append(String.format("  [ERR] %s (%s): %s\n", name, url, e.getMessage()));
-            }
-        }
-
-        if (failures.length() > 0) {
-            fail("Legacy XML endpoints failed:\n" + failures);
-        }
     }
 
     // --- JSON API endpoint tests ---
@@ -148,26 +96,6 @@ public class DownloadEndpointTest {
     // --- Fetch and parse tests (actually fetches episodes) ---
 
     @Test
-    public void allLegacyXmlEndpoints_returnValidEpisodes() {
-        StringBuilder failures = new StringBuilder();
-
-        for (Map.Entry<String, String> entry : ENGLISH.entrySet()) {
-            String koza = entry.getKey();
-            String name = entry.getValue();
-
-            NhkRepository.FetchResult result = repository.fetchEpisodes(koza, true);
-
-            if (!result.isSuccess()) {
-                failures.append(String.format("  [%s] %s (%s)\n", result.error, name, koza));
-            }
-        }
-
-        if (failures.length() > 0) {
-            fail("Legacy XML fetch/parse failed:\n" + failures);
-        }
-    }
-
-    @Test
     public void allJsonApiEndpoints_returnValidEpisodes() {
         StringBuilder failures = new StringBuilder();
 
@@ -175,7 +103,7 @@ public class DownloadEndpointTest {
             String koza = entry.getKey();
             String name = entry.getValue();
 
-            NhkRepository.FetchResult result = repository.fetchEpisodes(koza, false);
+            NhkRepository.FetchResult result = repository.fetchEpisodes(koza);
 
             if (!result.isSuccess()) {
                 failures.append(String.format("  [%s] %s (%s)\n", result.error, name, koza));
@@ -197,7 +125,7 @@ public class DownloadEndpointTest {
             String koza = entry.getKey();
             String name = entry.getValue();
 
-            NhkRepository.FetchResult result = repository.fetchEpisodes(koza, false);
+            NhkRepository.FetchResult result = repository.fetchEpisodes(koza);
             if (!result.isSuccess()) {
                 failures.append(String.format("  [fetch failed] %s (%s)\n", name, koza));
                 continue;
