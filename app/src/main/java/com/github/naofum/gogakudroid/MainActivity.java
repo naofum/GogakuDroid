@@ -121,7 +121,17 @@ public class MainActivity extends AppCompatActivity {
 	public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 		if (requestCode == 1) {
-			if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+			boolean granted = false;
+			for (int i = 0; i < permissions.length && i < grantResults.length; i++) {
+				if (grantResults[i] == PackageManager.PERMISSION_GRANTED) {
+					if (permissions[i].equals(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+							|| permissions[i].equals("android.permission.READ_MEDIA_AUDIO")) {
+						granted = true;
+						break;
+					}
+				}
+			}
+			if (granted) {
 				if (coursesFragment != null) {
 					coursesFragment.setButtonEnabled(true);
 				}

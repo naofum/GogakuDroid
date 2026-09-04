@@ -9,6 +9,7 @@ Including next packages
  * ffmpeg-kit-16KB
 
 Release note
+ * 0.32 fix permission checking
  * 0.31 SDK version 37, Update UI/UX
  * 0.30 SDK version 36
  * 0.29 bug fix mp3
